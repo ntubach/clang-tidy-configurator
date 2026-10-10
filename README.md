@@ -9,9 +9,13 @@ clang-format's formatting options.
 
 ## Live deployment
 
-Running at http://165.227.213.129 (a $6/mo DigitalOcean droplet, no domain/TLS yet) - nginx
-serves the built front-end and proxies `/analyze` to the Go backend, which runs as the `ctc`
-systemd service (`clang-tidy-configurator.service`).
+Running at https://clang-tidy-configurator.site - a $6/mo DigitalOcean droplet (nginx serves the
+built front-end and proxies `/analyze` to the Go backend, which runs as the `ctc` systemd service,
+`clang-tidy-configurator.service`), fronted by Cloudflare for DNS and TLS. The domain is
+registered and DNS-managed through Cloudflare (SSL/TLS mode: Flexible - Cloudflare terminates
+HTTPS for visitors and talks to the droplet over plain HTTP, so the origin itself has no
+certificate of its own). The droplet is still directly reachable at its bare IP,
+`165.227.213.129`, over HTTP only.
 
 Every push to `main` auto-deploys via `.github/workflows/deploy.yml`: it rsyncs the repo to
 `/opt/clang-tidy-configurator` as an unprivileged `deploy` user, rebuilds both the Go binary and
