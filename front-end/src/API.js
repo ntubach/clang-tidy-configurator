@@ -1,15 +1,17 @@
-export function Analyze(code, tidyConfigYaml, extraArgs, version, language, analyzeApiUrl, onResult, onError) {
-  let filext = "";
+function filextFor(language) {
   switch (language) {
     case "c_cpp":
-      filext = ".cpp"
-      break;
+      return ".cpp"
     case "c":
-      filext = ".c"
-      break;
+      return ".c"
+    default:
+      return ""
   }
+}
+
+function post(apiUrl, version, filext, code, tidyConfigYaml, extraArgs, onResult, onError) {
   const body = { code: code, tidyConfig: tidyConfigYaml, extraArgs: extraArgs }
-  fetch(analyzeApiUrl + new URLSearchParams({
+  fetch(apiUrl + new URLSearchParams({
     version: version,
     filext: filext
   }), {
@@ -19,8 +21,18 @@ export function Analyze(code, tidyConfigYaml, extraArgs, version, language, anal
   })
     .then(response => {
       if (response.ok)
-        response.json().then((data) => onResult(data.diagnostics || []))
+        response.json().then(onResult)
       else
         response.text().then(onError)
     }).catch((errorObject) => { onError(errorObject.toString()) })
+}
+
+export function Analyze(code, tidyConfigYaml, extraArgs, version, language, analyzeApiUrl, onResult, onError) {
+  post(analyzeApiUrl, version, filextFor(language), code, tidyConfigYaml, extraArgs,
+    (data) => onResult(data.diagnostics || []), onError)
+}
+
+export function Fix(code, tidyConfigYaml, extraArgs, version, language, fixApiUrl, onResult, onError) {
+  post(fixApiUrl, version, filextFor(language), code, tidyConfigYaml, extraArgs,
+    (data) => onResult(data.fixedCode || "", data.diagnostics || []), onError)
 }

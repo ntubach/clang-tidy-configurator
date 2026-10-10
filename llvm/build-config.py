@@ -326,6 +326,7 @@ def main():
 
     config = {
         "AnalyzeApiUrl": "http://localhost:8080/analyze?",
+        "FixApiUrl": "http://localhost:8080/fix?",
         "Versions": {"title": "Version", "values": versions},
     }
 

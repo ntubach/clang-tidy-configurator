@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/nikotubach/clang-tidy-configurator-v2/internal/app/analyzer"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/nikotubach/clang-tidy-configurator-v2/internal/app/analyzer"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -28,6 +28,7 @@ func (srv *Server) StartTLS(certFile, keyFile string) error {
 func (srv *Server) configureRouter() {
 	srv.router.Use(handlers.CORS(handlers.AllowedOrigins([]string{"*"})))
 	srv.router.HandleFunc("/analyze", srv.analyzeHandler).Methods("POST")
+	srv.router.HandleFunc("/fix", srv.fixHandler).Methods("POST")
 }
 
 func NewServer(an *analyzer.Analyzer, bindAddr string) *Server {
@@ -70,47 +71,101 @@ type analyzeResponseBody struct {
 	Diagnostics []analyzer.Diagnostic `json:"diagnostics"`
 }
 
-func (srv *Server) analyzeHandler(rw http.ResponseWriter, req *http.Request) {
+// parseVersionAndFilext reads and validates the version/filext query params
+// and the request body shared by /analyze and /fix. Returns ok=false if it
+// already wrote an error response.
+func (srv *Server) parseVersionAndFilext(rw http.ResponseWriter, req *http.Request) (version, filenameExt string, body analyzeRequestBody, ok bool) {
 	if !req.URL.Query().Has("version") {
 		log.Debug("No version parameter in query")
 		http.Error(rw, "No version parameter in query", http.StatusBadRequest)
-		return
+		return "", "", body, false
 	}
-	version := req.URL.Query().Get("version")
+	version = req.URL.Query().Get("version")
 
 	if !req.URL.Query().Has("filext") {
 		log.Debug("No filext parameter in query")
 		http.Error(rw, "No filext parameter in query", http.StatusBadRequest)
-		return
+		return "", "", body, false
 	}
-	filenameExt := req.URL.Query().Get("filext")
+	filenameExt = req.URL.Query().Get("filext")
 
 	if !srv.analyzer.VersionAvailable(version) {
 		log.Debugf("Specified version not available %s", version)
 		http.Error(rw, "Selected version is not available", http.StatusBadRequest)
-		return
+		return "", "", body, false
 	}
 
-	var body analyzeRequestBody
 	decoder := json.NewDecoder(req.Body)
-	err := decoder.Decode(&body)
-	if err != nil {
+	if err := decoder.Decode(&body); err != nil {
 		log.Debugf("Failed to decode request body:\n%s", req.Body)
 		http.Error(rw, "Failed to decode request body", http.StatusBadRequest)
+		return "", "", body, false
+	}
+
+	return version, filenameExt, body, true
+}
+
+func writeAnalyzerError(rw http.ResponseWriter, err error) {
+	if inpErr, ok := err.(*analyzer.InputError); ok {
+		http.Error(rw, inpErr.Error(), http.StatusBadRequest)
+	} else if intErr, ok := err.(*analyzer.InternalError); ok {
+		http.Error(rw, intErr.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (srv *Server) analyzeHandler(rw http.ResponseWriter, req *http.Request) {
+	version, filenameExt, body, ok := srv.parseVersionAndFilext(rw, req)
+	if !ok {
 		return
 	}
 
 	diagnostics, err := srv.analyzer.Analyze(version, filenameExt, body.Code, body.TidyConfig, body.ExtraArgs)
 	if err != nil {
-		if inpErr, ok := err.(*analyzer.InputError); ok {
-			http.Error(rw, inpErr.Error(), http.StatusBadRequest)
-		} else if intErr, ok := err.(*analyzer.InternalError); ok {
-			http.Error(rw, intErr.Error(), http.StatusInternalServerError)
-		}
+		writeAnalyzerError(rw, err)
 		return
 	}
 
 	responseBody, err := json.Marshal(analyzeResponseBody{Diagnostics: diagnostics})
+	if err != nil {
+		log.Errorf("Failed to marshal response: %s", err)
+		http.Error(rw, "Internal error", http.StatusInternalServerError)
+		return
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	rw.Write(responseBody)
+	log.Debug("Request successfully served")
+}
+
+/*
+Fix endpoint
+
+Same request shape as /analyze. Runs clang-tidy with --fix-errors and
+returns the rewritten file content alongside whatever diagnostics remain.
+
+Response
+200 OK, application/json: {"fixedCode": "...", "diagnostics": [...]}
+*/
+
+type fixResponseBody struct {
+	FixedCode   string                `json:"fixedCode"`
+	Diagnostics []analyzer.Diagnostic `json:"diagnostics"`
+}
+
+func (srv *Server) fixHandler(rw http.ResponseWriter, req *http.Request) {
+	version, filenameExt, body, ok := srv.parseVersionAndFilext(rw, req)
+	if !ok {
+		return
+	}
+
+	fixedCode, diagnostics, err := srv.analyzer.Fix(version, filenameExt, body.Code, body.TidyConfig, body.ExtraArgs)
+	if err != nil {
+		writeAnalyzerError(rw, err)
+		return
+	}
+
+	responseBody, err := json.Marshal(fixResponseBody{FixedCode: fixedCode, Diagnostics: diagnostics})
 	if err != nil {
 		log.Errorf("Failed to marshal response: %s", err)
 		http.Error(rw, "Internal error", http.StatusInternalServerError)

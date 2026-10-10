@@ -1,4 +1,5 @@
 import Header from "./components/Header";
+import headerStyles from "./components/Header.module.css";
 import ChecksList from "./components/ChecksList";
 import { Resizable } from "re-resizable";
 import Editor from "./components/Editor";
@@ -13,6 +14,7 @@ import Popup from 'reactjs-popup';
 
 import { debounce } from "lodash";
 import ConfigUiPage from "./components/ConfigUiPage";
+import ReadabilityPage from "./components/ReadabilityPage";
 
 
 function initialOptions(config, selectedVersion) {
@@ -47,21 +49,50 @@ const App = () => {
 
   if (configError) return <div>Failed to load config.json: {configError}</div>
   if (!config) return <div>Loading...</div>
-  return <MainApp config={config} />
+  return <Shell config={config} />
 }
 
-const MainApp = ({ config }) => {
+// Owns the state shared between the two pages (dark theme, selected
+// clang-tidy version, which page is active) so switching pages doesn't lose
+// either of those or require a second config.json fetch.
+const Shell = ({ config }) => {
   const [cookie, setCookie] = useCookies([])
+  const [view, setView] = useState("analyze")
+  const [darkThemeActive, setDarkThemeActive] = useState(cookie.theme === "dark" || cookie.theme === "light" ? cookie.theme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches)
+  useEffect(() => { if (darkThemeActive) document.body.className = "dark"; else document.body.className = "" }, [darkThemeActive])
 
+  const [selectedVersion, setSelectedVersion] = useState(
+    config.Versions.values.includes(cookie.version) ? cookie.version : config.Versions.values[0]
+  )
+
+  const onDarkThemeChange = () => {
+    const newDarkThemeStatus = !darkThemeActive
+    setCookie("theme", newDarkThemeStatus ? "dark" : "light", { path: "/" })
+    setDarkThemeActive(newDarkThemeStatus)
+  }
+  const onVersionChange = (newVersion) => {
+    setCookie("version", newVersion, { path: "/" })
+    setSelectedVersion(newVersion)
+  }
+
+  const sharedProps = {
+    config, selectedVersion, onVersionChange,
+    darkTheme: darkThemeActive, onDarkThemeChange,
+  }
+
+  if (view === "readability")
+    return <ReadabilityPage {...sharedProps} onNavigate={() => setView("analyze")} />
+  return <MainApp {...sharedProps} onNavigate={() => setView("readability")} />
+}
+
+const MainApp = ({ config, selectedVersion, onVersionChange, darkTheme, onDarkThemeChange, onNavigate }) => {
   const [configPageOpened, setConfigPageOpened] = useState(false)
 
   const errorText = useRef("")
   const [activeErrorPopup, setActiveErrorPopup] = useState(false)
-  const [darkThemeActive, setDarkThemeActive] = useState(cookie.theme === "dark" || cookie.theme === "light" ? cookie.theme === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches)
-  useEffect(() => { if (darkThemeActive) document.body.className = "dark"; else document.body.className = "" }, [darkThemeActive])
 
-  const initialVersion = config.Versions.values.includes(cookie.version) ? cookie.version : config.Versions.values[0]
-  const [options, setOptions] = useState(initialOptions(config, initialVersion));
+  const [options, setOptions] = useState(initialOptions(config, selectedVersion));
+  useEffect(() => { setOptions(initialOptions(config, selectedVersion)) }, [config, selectedVersion])
 
   const [text, setText] = useState("");
   const [diagnostics, setDiagnostics] = useState([]);
@@ -95,19 +126,28 @@ const MainApp = ({ config }) => {
   return (
     <div>
       <Header
-        autoAnalyze={autoAnalyze}
-        darkTheme={darkThemeActive}
-        onDarkThemeChange={() => { const newDarkThemeStatus = !darkThemeActive; setCookie("theme", newDarkThemeStatus ? "dark" : "light", { path: "/" }); setDarkThemeActive(newDarkThemeStatus) }}
-        onUpdate={() => { window.loadingIcon.setLoadingState("loading"); analyzeCode(options, text) }}
-        onConfigFile={() => { setConfigPageOpened(true) }}
-        onAutoAnalyzeChange={setAutoAnalyze}
+        darkTheme={darkTheme}
+        onDarkThemeChange={onDarkThemeChange}
         versions={config.Versions.values}
-        selectedVersion={options.selectedVersion}
-        onVersionChange={(newVersion) => {
-          setCookie("version", newVersion, { path: "/" })
-          setOptions(initialOptions(config, newVersion))
-        }}
-      />
+        selectedVersion={selectedVersion}
+        onVersionChange={onVersionChange}
+        navLabel="Readability Preview"
+        onNavClick={onNavigate}
+      >
+        <input
+          className={headerStyles.checkbox}
+          type="checkbox"
+          id="autoupdate" defaultChecked={autoAnalyze}
+          onChange={(event) => setAutoAnalyze(event.currentTarget.checked)}
+        />
+        <label className={headerStyles.label} htmlFor="autoupdate">Auto-analyze on changes</label>
+        <button onClick={() => { window.loadingIcon.setLoadingState("loading"); analyzeCode(options, text) }}>
+          Analyze
+        </button>
+        <button onClick={() => { setConfigPageOpened(true) }}>
+          Config File
+        </button>
+      </Header>
       <Popup
         className="error_popup"
         open={activeErrorPopup}
@@ -142,7 +182,7 @@ const MainApp = ({ config }) => {
             errorText.current = errorDescription
             setActiveErrorPopup(true)
           }}
-          darkTheme={darkThemeActive}
+          darkTheme={darkTheme}
           options={options}
         />
       </Popup>
@@ -196,7 +236,7 @@ const MainApp = ({ config }) => {
             onTextChange={setText}
             editorText={text}
             diagnostics={diagnostics}
-            darkTheme={darkThemeActive}
+            darkTheme={darkTheme}
             loadingIcon={<LoadingIcon />}
             gotoRef={gotoRef}
           />

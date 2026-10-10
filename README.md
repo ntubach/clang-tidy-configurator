@@ -7,6 +7,11 @@ its overall architecture (a small Go server shelling out to real clang binaries 
 front-end) but with a data model and UI built around clang-tidy's checks/CheckOptions instead of
 clang-format's formatting options.
 
+A second, lighter-weight page ("Readability Preview", reachable via the header button) is closer
+to clang-format-configurator's own UX: pick from the `readability-*` checks that have a known safe
+fix, and see the sample rewritten in place - or diffed against where it started - instead of a
+diagnostics list. See `front-end/src/components/ReadabilityPage.jsx`.
+
 ## Live deployment
 
 Running at https://clang-tidy-configurator.site - a $6/mo DigitalOcean droplet (nginx serves the
@@ -120,22 +125,25 @@ cd llvm
 This regenerates `llvm/config.json` via the same `llvm/build-config.py` from the newly built
 binaries and docs for every tag in `prepare.sh`'s `TAGS` array.
 
-### Gotcha: AnalyzeApiUrl
+### Gotcha: AnalyzeApiUrl / FixApiUrl
 
-`build-config.py` always writes `AnalyzeApiUrl` as `http://localhost:8080/analyze?` (the value
-that's actually correct for local dev, via `npm start`). Production needs it set to the relative
-`/analyze?` instead, so the browser hits the same origin nginx proxies rather than literally
-`localhost` in each visitor's own browser. Since `front-end/public/config.json` is copied into
-`front-end/build/config.json` at build time (not left as a symlink), patching the committed
-`llvm/config.json` alone isn't enough once a build already ran - either patch it *before*
-`npm run build`, or patch the deployed `front-end/build/config.json` directly, which takes effect
-immediately with no rebuild since it's served as a static file.
+`build-config.py` always writes `AnalyzeApiUrl` and `FixApiUrl` as `http://localhost:8080/...`
+(the value that's actually correct for local dev, via `npm start`). Production needs both set to
+the relative `/analyze?` and `/fix?` instead, so the browser hits the same origin nginx proxies
+rather than literally `localhost` in each visitor's own browser. Since `front-end/public/config.json`
+is copied into `front-end/build/config.json` at build time (not left as a symlink), patching the
+committed `llvm/config.json` alone isn't enough once a build already ran - either patch both URLs
+*before* `npm run build`, or patch the deployed `front-end/build/config.json` directly, which takes
+effect immediately with no rebuild since it's served as a static file.
 
 ## Known limitations (v1)
 
 - Only the module-level bulk toggle + explicit per-check overrides are reconstructed when loading
   an uploaded `.clang-tidy` file; hand-written partial globs (e.g. `bugprone-use-*`) are ignored
   rather than reverse-engineered, since this configurator never writes those itself.
-- No `--fix` / before-after diff view - only diagnostics.
 - CheckOptions enum constraints are only recognized for identifier-naming's casing and
   Hungarian-prefix options; everything else is a free-text field.
+- The Readability Preview page is checks-only, on/off - it doesn't expose per-check `CheckOptions`
+  (so e.g. identifier-naming's casing style there is always whatever clang-tidy defaults to), and
+  only offers `readability-*` checks our schema marks `offersFixes: true` for, not the full set of
+  checks with fixes across every module.

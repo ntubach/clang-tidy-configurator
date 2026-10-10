@@ -1,0 +1,28 @@
+[
+    {
+        "description": "readability-container-size-empty rewrites .size()==0 to .empty()",
+        "version": "20.1.8",
+        "file_extension": ".cpp",
+        "tidy_config": "{Checks: 'readability-container-size-empty'}",
+        "extra_args": "-std=c++17",
+        "code": "#include <string>\nbool isEmpty(const std::string &s) {\n  return s.size() == 0;\n}\n",
+        "expected_contains": [
+            "s.empty()"
+        ],
+        "expected_not_contains": [
+            "s.size() == 0"
+        ]
+    },
+    {
+        "description": "no checks enabled leaves the code unchanged",
+        "version": "20.1.8",
+        "file_extension": ".cpp",
+        "tidy_config": "{Checks: '-*'}",
+        "extra_args": "-std=c++17",
+        "code": "int main() { return 0; }\n",
+        "expected_contains": [
+            "int main() { return 0; }"
+        ],
+        "expected_not_contains": []
+    }
+]
