@@ -12,11 +12,42 @@
   border-bottom-color: #4a4a4a;
 }
 
+.search_input_wrapper {
+  position: relative;
+  width: 100%;
+}
+
 .search_input {
-  width: calc(100% - 16px);
-  padding: 6px 8px;
+  width: 100%;
+  padding: 6px 28px 6px 8px;
   font-size: 14px;
   box-sizing: border-box;
+}
+
+.search_clear_button {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px 6px;
+  color: #777;
+}
+
+.search_clear_button:hover {
+  color: #333;
+}
+
+:global(.dark) .search_clear_button {
+  color: #aaa;
+}
+
+:global(.dark) .search_clear_button:hover {
+  color: #fff;
 }
 
 .module_section {

@@ -36,13 +36,25 @@ const ChecksList = ({ config, selectedVersion, moduleState, checkOverrides, chec
   return (
     <div className="ChecksList">
       <div className={styles.search_container}>
-        <input
-          type="text"
-          className={styles.search_input}
-          placeholder={`Search ${config[selectedVersion].checks.length} checks...`}
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
+        <div className={styles.search_input_wrapper}>
+          <input
+            type="text"
+            className={styles.search_input}
+            placeholder={`Search ${config[selectedVersion].checks.length} checks...`}
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          {search ? (
+            <button
+              type="button"
+              className={styles.search_clear_button}
+              aria-label="Clear search"
+              onClick={() => setSearch("")}
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
       </div>
       {config[selectedVersion].modules.map((module) => {
         const moduleChecks = checksByModule[module] || []
