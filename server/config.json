@@ -1,0 +1,9 @@
+{
+    "bind-addr": "0.0.0.0:8080",
+    "log-level": "debug",
+    "certificate-file": "",
+    "key-file": "",
+    "versions": {
+        "20.1.8": "./third-party/clang-tidy/clang-tidy-20.1.8"
+    }
+}

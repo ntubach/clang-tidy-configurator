@@ -1,0 +1,131 @@
+.check {
+  margin: 3px 5px;
+  padding: 3px 0px;
+}
+
+.check_row {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox {
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.title {
+  font-family: monospace;
+  font-size: 14px;
+  overflow: hidden;
+}
+
+:global(.dark) .title {
+  color: #cfcec4;
+}
+
+.title_container {
+  flex-grow: 1;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fix_badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background-color: #2f7d32;
+  color: white;
+}
+
+:global(.dark) .fix_badge {
+  background-color: #2f7d32;
+}
+
+.docstring {
+  min-height: 20px;
+  padding: 15px;
+  margin: 10px 10px 10px 24px;
+  padding-top: 5px;
+  background-color: #f5f5f5;
+  border: 1px solid #e3e3e3;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+:global(.dark) .docstring {
+  background-color: #2b2e32;
+  border-color: #141414;
+  color: #d0cec5;
+}
+
+.docstring code {
+  padding: 2px 4px;
+  font-size: 90%;
+  color: #c7254e;
+  background-color: #f9f2f4;
+  border-radius: 4px;
+  font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+}
+
+:global(.dark) .docstring code {
+  background-color: rgb(79, 44, 53);
+  color: rgb(245, 95, 133);
+}
+
+.docstring pre {
+  overflow-x: scroll;
+  max-width: 100%;
+  padding-bottom: 8px;
+  font-size: inherit;
+  color: inherit;
+  border: 1px solid #e3e3e3;
+  background-color: #f8f8f8;
+  border-radius: 4px;
+  white-space: pre;
+  padding-top: 10px;
+  font-weight: 200;
+  font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+}
+
+:global(.dark) .docstring pre {
+  background-color: #434343;
+  border-color: #1a1a1a;
+}
+
+.info_button {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  padding: 0;
+  border: none;
+  background: none;
+  opacity: 0.9;
+}
+
+.options_container {
+  margin-left: 24px;
+  padding: 4px 0px 4px 10px;
+  border-left: 2px solid #e3e3e3;
+}
+
+:global(.dark) .options_container {
+  border-left-color: #4a4a4a;
+}
+
+.option_row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 3px 0px;
+}
+
+.option_name {
+  font-family: monospace;
+  font-size: 12px;
+}
+
+:global(.dark) .option_name {
+  color: #cfcec4;
+}

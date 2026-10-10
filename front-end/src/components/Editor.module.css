@@ -1,0 +1,46 @@
+.editor_wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.tab_container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.tab_button {
+  margin-bottom: 0px;
+  padding-bottom: 0px;
+  border-bottom-width: 0px;
+  border-bottom-style: none;
+  border-bottom-left-radius: 0px;
+  border-bottom-right-radius: 0px;
+}
+
+.editor_container {
+  flex-grow: 1;
+  min-height: 0;
+}
+
+.marker_error {
+  position: absolute;
+  border-bottom: 2px wavy #e53935;
+  text-decoration: underline wavy #e53935;
+}
+
+.marker_warning {
+  position: absolute;
+  border-bottom: 2px wavy #f9a825;
+  text-decoration: underline wavy #f9a825;
+}
+
+.marker_note {
+  position: absolute;
+  border-bottom: 2px wavy #42a5f5;
+  text-decoration: underline wavy #42a5f5;
+}

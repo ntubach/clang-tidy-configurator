@@ -1,0 +1,33 @@
+[
+    {
+        "description": "modernize-use-nullptr flags NULL assignment",
+        "version": "20.1.8",
+        "file_extension": ".cpp",
+        "tidy_config": "{Checks: 'modernize-use-nullptr'}",
+        "extra_args": "-std=c++17",
+        "code": "#include <cstddef>\nint main() {\n  char *a = NULL;\n  return 0;\n}\n",
+        "expected_checks": [
+            "modernize-use-nullptr"
+        ]
+    },
+    {
+        "description": "readability-identifier-naming flags bad variable case with custom VariableCase",
+        "version": "20.1.8",
+        "file_extension": ".cpp",
+        "tidy_config": "{Checks: 'readability-identifier-naming', CheckOptions: {readability-identifier-naming.VariableCase: 'CamelCase'}}",
+        "extra_args": "-std=c++17",
+        "code": "void foo() {\n  int bad_named_var = 1;\n  (void)bad_named_var;\n}\n",
+        "expected_checks": [
+            "readability-identifier-naming"
+        ]
+    },
+    {
+        "description": "no checks enabled yields no diagnostics, not an error",
+        "version": "20.1.8",
+        "file_extension": ".cpp",
+        "tidy_config": "{Checks: '-*'}",
+        "extra_args": "-std=c++17",
+        "code": "int main() { char *a = NULL; return 0; }\n",
+        "expected_checks": []
+    }
+]
