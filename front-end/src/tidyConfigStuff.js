@@ -37,7 +37,12 @@ export function buildTidyConfigYaml(options, config) {
   if (options.headerFilterRegex)
     contents.HeaderFilterRegex = options.headerFilterRegex
   if (Object.keys(options.checkOptionOverrides).length > 0)
-    contents.CheckOptions = { ...options.checkOptionOverrides }
+    // The list-of-{key,value} form, not the newer map form: clang-tidy
+    // <=14 only accepts the list form, and every version through at
+    // least 23 still accepts it too, so it's the one shape that works
+    // across the whole supported version range.
+    contents.CheckOptions = Object.entries(options.checkOptionOverrides)
+      .map(([key, value]) => ({ key, value }))
 
   const doc = new yaml.Document()
   doc.contents = contents
@@ -98,9 +103,17 @@ export function loadTidyConfigFromString(configStr, config, selectedVersion, onL
 
   const { moduleState, checkOverrides } = parseChecksString(parsed.Checks, config, selectedVersion)
   const checkOptionOverrides = {}
-  Object.entries(parsed.CheckOptions || {}).forEach(([key, value]) => {
-    checkOptionOverrides[key] = String(value)
-  })
+  // CheckOptions may be the modern map form or the legacy (clang-tidy
+  // <=14) list-of-{key,value} form - accept either on load.
+  if (Array.isArray(parsed.CheckOptions)) {
+    parsed.CheckOptions.forEach(({ key, value }) => {
+      checkOptionOverrides[key] = String(value)
+    })
+  } else {
+    Object.entries(parsed.CheckOptions || {}).forEach(([key, value]) => {
+      checkOptionOverrides[key] = String(value)
+    })
+  }
 
   onLoaded({
     selectedVersion,

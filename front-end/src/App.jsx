@@ -79,6 +79,12 @@ const App = () => {
         onUpdate={() => { window.loadingIcon.setLoadingState("loading"); analyzeCode(options, text) }}
         onConfigFile={() => { setConfigPageOpened(true) }}
         onAutoAnalyzeChange={setAutoAnalyze}
+        versions={config.Versions.values}
+        selectedVersion={options.selectedVersion}
+        onVersionChange={(newVersion) => {
+          setCookie("version", newVersion, { path: "/" })
+          setOptions(initialOptions(newVersion))
+        }}
       />
       <Popup
         className="error_popup"

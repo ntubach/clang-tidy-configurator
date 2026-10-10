@@ -3,11 +3,22 @@ import styles from './Header.module.css'
 
 
 
-const Header = ({ autoAnalyze, onAutoAnalyzeChange, darkTheme, onDarkThemeChange, onUpdate, onConfigFile }) => {
+const Header = ({ autoAnalyze, onAutoAnalyzeChange, darkTheme, onDarkThemeChange, onUpdate, onConfigFile, versions, selectedVersion, onVersionChange }) => {
   return (
     <header className={styles.header}>
       <h1 className={styles.title_text}>clang-tidy configurator v2</h1>
       <span>
+        <label className={styles.label} htmlFor="version-select">clang-tidy</label>
+        <select
+          id="version-select"
+          className={styles.button}
+          value={selectedVersion}
+          onChange={(event) => onVersionChange(event.target.value)}
+        >
+          {versions.map((v) => (
+            <option key={v} value={v}>{v}</option>
+          ))}
+        </select>
         <input
           className={styles.checkbox} type="checkbox"
           id="autoupdate" defaultChecked={autoAnalyze}

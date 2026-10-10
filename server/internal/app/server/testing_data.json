@@ -29,5 +29,36 @@
         "extra_args": "-std=c++17",
         "code": "int main() { char *a = NULL; return 0; }\n",
         "expected_checks": []
+    },
+    {
+        "description": "oldest supported version (14.0.6, predates --allow-no-checks) still analyzes normally",
+        "version": "14.0.6",
+        "file_extension": ".cpp",
+        "tidy_config": "{Checks: 'modernize-use-nullptr'}",
+        "extra_args": "-std=c++17",
+        "code": "#include <cstddef>\nint main() {\n  char *a = NULL;\n  return 0;\n}\n",
+        "expected_checks": [
+            "modernize-use-nullptr"
+        ]
+    },
+    {
+        "description": "oldest supported version (14.0.6) only accepts legacy list-form CheckOptions",
+        "version": "14.0.6",
+        "file_extension": ".cpp",
+        "tidy_config": "{Checks: 'readability-identifier-naming', CheckOptions: [{key: 'readability-identifier-naming.VariableCase', value: 'CamelCase'}]}",
+        "extra_args": "-std=c++17",
+        "code": "void foo() {\n  int bad_named_var = 1;\n  (void)bad_named_var;\n}\n",
+        "expected_checks": [
+            "readability-identifier-naming"
+        ]
+    },
+    {
+        "description": "no checks enabled on a version predating --allow-no-checks still yields no diagnostics, not an error",
+        "version": "14.0.6",
+        "file_extension": ".cpp",
+        "tidy_config": "{Checks: '-*'}",
+        "extra_args": "-std=c++17",
+        "code": "int main() { char *a = NULL; return 0; }\n",
+        "expected_checks": []
     }
 ]

@@ -67,8 +67,19 @@ def resolve_module(check_name: str) -> str:
 
 
 def resolve_doc_path(docs_dir: str, version: str, check_name: str, module: str) -> str:
+    # Doc layout changed across LLVM versions: older releases (up through
+    # ~14.x) have every check's .rst directly under checks/, named after
+    # the full check name; newer releases nest them under checks/<module>/.
+    # Try nested first (the common case for anything still receiving
+    # releases), then fall back to flat.
     rest = check_name[len(module) + 1:] if check_name != module else check_name
-    return os.path.join(docs_dir, version, "checks", module, rest + ".rst")
+    nested = os.path.join(docs_dir, version, "checks", module, rest + ".rst")
+    if os.path.isfile(nested):
+        return nested
+    flat = os.path.join(docs_dir, version, "checks", check_name + ".rst")
+    if os.path.isfile(flat):
+        return flat
+    return nested
 
 
 def list_checks(binary: str) -> list:
@@ -90,7 +101,12 @@ def dump_check_options(binary: str) -> dict:
             capture_output=True, text=True, check=True, cwd=tmp,
         ).stdout
     parsed = yaml.safe_load(output)
-    return parsed.get("CheckOptions") or {}
+    raw = parsed.get("CheckOptions") or {}
+    # Pre-15ish clang-tidy serializes CheckOptions as a list of {key,
+    # value} pairs instead of a flat map; normalize to a map either way.
+    if isinstance(raw, list):
+        return {entry["key"]: entry["value"] for entry in raw}
+    return raw
 
 
 def infer_type(option_name: str, default_value, docstring: str = "") -> str:

@@ -43,13 +43,23 @@ type Diagnostic struct {
 	Check    string `json:"check"`
 }
 
+type binary struct {
+	path string
+	// --allow-no-checks was added in clang-tidy 19; passing it to an
+	// older binary makes the whole invocation fail immediately with an
+	// "Unknown command line argument" error before it even looks at the
+	// file, so it must only be used when the binary actually supports it.
+	supportsAllowNoChecks bool
+}
+
 type Analyzer struct {
-	executables map[string]string
+	executables map[string]binary
 	timeout     time.Duration
 }
 
 func (a *Analyzer) checkAndSetExecs(versions *map[string]string) error {
 	var err error
+	executables := make(map[string]binary)
 	for version, execPath := range *versions {
 		// Resolved to an absolute path now, while the process cwd is still
 		// the server's working directory: Analyze() sets cmd.Dir to a temp
@@ -71,13 +81,22 @@ func (a *Analyzer) checkAndSetExecs(versions *map[string]string) error {
 			continue
 		}
 		(*versions)[version] = absExecPath
+
+		helpCmd := exec.Command(absExecPath, "--help")
+		helpOutput := new(strings.Builder)
+		helpCmd.Stdout = helpOutput
+		helpCmd.Run() // best-effort; a failure here just leaves the flag off
+		executables[version] = binary{
+			path:                  absExecPath,
+			supportsAllowNoChecks: strings.Contains(helpOutput.String(), "--allow-no-checks"),
+		}
 		log.Infof("%s --version output:\n%s", absExecPath, output.String())
 	}
 
 	if len(*versions) == 0 {
 		err = errors.New("failed to run every single clang-tidy version")
 	} else {
-		a.executables = *versions
+		a.executables = executables
 	}
 	return err
 }
@@ -127,15 +146,25 @@ func parseDiagnostics(output, fileName string) []Diagnostic {
 	return diagnostics
 }
 
+// noChecksEnabledMarker is what clang-tidy prints (and fails with) when the
+// resolved Checks glob matches nothing, on versions old enough to lack
+// --allow-no-checks (added in clang-tidy 19). Newer binaries never hit this
+// since Analyze() passes that flag whenever the binary supports it; treating
+// it as "zero diagnostics" rather than a hard failure keeps behavior
+// consistent across the whole supported version range.
+const noChecksEnabledMarker = "Error: no checks enabled"
+
 func looksLikeHardFailure(stderrText string, diagnostics []Diagnostic) bool {
 	if len(diagnostics) > 0 {
 		return false
 	}
+	if strings.Contains(stderrText, noChecksEnabledMarker) {
+		return false
+	}
 	hardFailureMarkers := []string{
 		"Error: invalid configuration specified",
-		"Error: no checks enabled",
-		"clang-tidy: Unknown command line argument",
-		"clang-tidy: for the --config",
+		"Unknown command line argument",
+		"for the --config",
 	}
 	for _, marker := range hardFailureMarkers {
 		if strings.Contains(stderrText, marker) {
@@ -147,7 +176,7 @@ func looksLikeHardFailure(stderrText string, diagnostics []Diagnostic) bool {
 
 func (a *Analyzer) Analyze(version, filenameExt, code, tidyConfigYaml, extraArgs string) ([]Diagnostic, error) {
 	log.Debugf("Start analyzing\nversion:%s\nfilenameExt: %s\nCode:\n%s\n\n\nConfig:\n%s\n\n\n", version, filenameExt, code, tidyConfigYaml)
-	executable, ok := a.executables[version]
+	bin, ok := a.executables[version]
 	if !ok {
 		return nil, &InputError{"selected version is not available"}
 	}
@@ -170,9 +199,11 @@ func (a *Analyzer) Analyze(version, filenameExt, code, tidyConfigYaml, extraArgs
 		filePath,
 		fmt.Sprintf("--config=%s", tidyConfigYaml),
 		"--quiet",
-		"--allow-no-checks",
-		"--",
 	}
+	if bin.supportsAllowNoChecks {
+		args = append(args, "--allow-no-checks")
+	}
+	args = append(args, "--")
 	if extraArgs != "" {
 		args = append(args, strings.Fields(extraArgs)...)
 	}
@@ -180,7 +211,7 @@ func (a *Analyzer) Analyze(version, filenameExt, code, tidyConfigYaml, extraArgs
 	ctx, cancel := context.WithTimeout(context.Background(), a.timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, executable, args...)
+	cmd := exec.CommandContext(ctx, bin.path, args...)
 	cmd.Dir = tmpDir
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
