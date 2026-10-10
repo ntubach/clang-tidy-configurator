@@ -10,10 +10,9 @@ import "ace-builds/src-noconflict/theme-clouds_midnight";
 import "ace-builds/src-noconflict/ext-language_tools";
 import "ace-builds/src-min-noconflict/ext-searchbox";
 import { buildTidyConfigYaml, loadTidyConfigFromString } from "../tidyConfigStuff"
-import config from "../config.json";
 
 
-const ConfigUiPage = ({ options, onLoaded, onError, onClose, darkTheme }) => {
+const ConfigUiPage = ({ config, options, onLoaded, onError, onClose, darkTheme }) => {
     const [optionsText, setOptionsText] = React.useState(buildTidyConfigYaml(options, config))
 
     const downloadConfigFile = React.useCallback(() => {

@@ -1,6 +1,4 @@
-import config from "./config.json";
-
-export function Analyze(code, tidyConfigYaml, extraArgs, version, language, onResult, onError) {
+export function Analyze(code, tidyConfigYaml, extraArgs, version, language, analyzeApiUrl, onResult, onError) {
   let filext = "";
   switch (language) {
     case "c_cpp":
@@ -11,7 +9,7 @@ export function Analyze(code, tidyConfigYaml, extraArgs, version, language, onRe
       break;
   }
   const body = { code: code, tidyConfig: tidyConfigYaml, extraArgs: extraArgs }
-  fetch(config.AnalyzeApiUrl + new URLSearchParams({
+  fetch(analyzeApiUrl + new URLSearchParams({
     version: version,
     filext: filext
   }), {

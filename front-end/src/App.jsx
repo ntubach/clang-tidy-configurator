@@ -6,7 +6,6 @@ import DiagnosticsList from "./components/DiagnosticsList";
 import Error from "./components/Error";
 import LoadingIcon from "./components/LoadingIcon";
 import { useEffect, useState, useRef } from "react";
-import config from "./config.json";
 import { buildTidyConfigYaml, emptyModuleState } from "./tidyConfigStuff"
 import { Analyze } from "./API"
 import { useCookies } from "react-cookie";
@@ -16,7 +15,7 @@ import { debounce } from "lodash";
 import ConfigUiPage from "./components/ConfigUiPage";
 
 
-function initialOptions(selectedVersion) {
+function initialOptions(config, selectedVersion) {
   return {
     selectedVersion,
     moduleState: emptyModuleState(config, selectedVersion),
@@ -28,7 +27,30 @@ function initialOptions(selectedVersion) {
   }
 }
 
+// config.json (the generated check schema) can run to several megabytes, so
+// it's fetched at runtime as a static asset instead of being `import`-ed -
+// bundling it into the JS makes webpack hold the whole thing in memory
+// during the production build, which is enough to OOM a small server.
 const App = () => {
+  const [config, setConfig] = useState(null)
+  const [configError, setConfigError] = useState(null)
+
+  useEffect(() => {
+    fetch("/config.json")
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        return response.json()
+      })
+      .then(setConfig)
+      .catch((err) => setConfigError(err.toString()))
+  }, [])
+
+  if (configError) return <div>Failed to load config.json: {configError}</div>
+  if (!config) return <div>Loading...</div>
+  return <MainApp config={config} />
+}
+
+const MainApp = ({ config }) => {
   const [cookie, setCookie] = useCookies([])
 
   const [configPageOpened, setConfigPageOpened] = useState(false)
@@ -39,7 +61,7 @@ const App = () => {
   useEffect(() => { if (darkThemeActive) document.body.className = "dark"; else document.body.className = "" }, [darkThemeActive])
 
   const initialVersion = config.Versions.values.includes(cookie.version) ? cookie.version : config.Versions.values[0]
-  const [options, setOptions] = useState(initialOptions(initialVersion));
+  const [options, setOptions] = useState(initialOptions(config, initialVersion));
 
   const [text, setText] = useState("");
   const [diagnostics, setDiagnostics] = useState([]);
@@ -49,7 +71,7 @@ const App = () => {
 
   function analyzeCode(opts, code) {
     const tidyYaml = buildTidyConfigYaml(opts, config)
-    Analyze(code, tidyYaml, opts.extraArgs, opts.selectedVersion, currentLang,
+    Analyze(code, tidyYaml, opts.extraArgs, opts.selectedVersion, currentLang, config.AnalyzeApiUrl,
       (newDiagnostics) => { setDiagnostics(newDiagnostics); window.loadingIcon.setLoadingState("success") },
       (errortext) => {
         window.loadingIcon.setLoadingState("error")
@@ -83,7 +105,7 @@ const App = () => {
         selectedVersion={options.selectedVersion}
         onVersionChange={(newVersion) => {
           setCookie("version", newVersion, { path: "/" })
-          setOptions(initialOptions(newVersion))
+          setOptions(initialOptions(config, newVersion))
         }}
       />
       <Popup
@@ -108,6 +130,7 @@ const App = () => {
         position="center center"
       >
         <ConfigUiPage
+          config={config}
           onClose={() => setConfigPageOpened(false)}
           onLoaded={(newOptions) => {
             if (newOptions === undefined)

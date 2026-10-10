@@ -74,8 +74,10 @@ Requirements: Go 1.22+, Node 18+, a clang-tidy binary (the system package is fin
    npm install
    npm start
    ```
-   `front-end/src/config.json` is a symlink to `llvm/config.json`, same convention as the
-   reference project.
+   `front-end/public/config.json` is a symlink to `llvm/config.json`. It lives under `public/`,
+   not `src/`, so it's fetched at runtime as a static asset rather than bundled into the JS by
+   webpack - that file can run to several megabytes (hundreds of checks x many versions), and
+   bundling it is enough to OOM a small build machine.
 
 ## Adding more versions
 
