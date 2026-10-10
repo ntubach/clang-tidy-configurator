@@ -58,6 +58,11 @@ jobs:
             npm ci --no-audit --no-fund
             npm run build
 
+            # deploy/nginx.conf is the source of truth for the site config;
+            # sync it every deploy so a new backend route never silently
+            # 404s/405s again just because nginx was never told about it.
+            sudo /usr/bin/cp /opt/clang-tidy-configurator/deploy/nginx.conf /etc/nginx/sites-available/clang-tidy-configurator
+            sudo /usr/sbin/nginx -t
             sudo systemctl restart clang-tidy-configurator
             sudo systemctl reload nginx
           '

@@ -15,17 +15,22 @@ diagnostics list. See `front-end/src/components/ReadabilityPage.jsx`.
 ## Live deployment
 
 Running at https://clang-tidy-configurator.site - a $6/mo DigitalOcean droplet (nginx serves the
-built front-end and proxies `/analyze` to the Go backend, which runs as the `ctc` systemd service,
-`clang-tidy-configurator.service`), fronted by Cloudflare for DNS and TLS. The domain is
-registered and DNS-managed through Cloudflare (SSL/TLS mode: Flexible - Cloudflare terminates
-HTTPS for visitors and talks to the droplet over plain HTTP, so the origin itself has no
-certificate of its own). The droplet is still directly reachable at its bare IP,
+built front-end and proxies `/analyze` and `/fix` to the Go backend, which runs as the `ctc`
+systemd service, `clang-tidy-configurator.service`), fronted by Cloudflare for DNS and TLS. The
+domain is registered and DNS-managed through Cloudflare (SSL/TLS mode: Flexible - Cloudflare
+terminates HTTPS for visitors and talks to the droplet over plain HTTP, so the origin itself has
+no certificate of its own). The droplet is still directly reachable at its bare IP,
 `165.227.213.129`, over HTTP only.
 
 Every push to `main` auto-deploys via `.github/workflows/deploy.yml`: it rsyncs the repo to
 `/opt/clang-tidy-configurator` as an unprivileged `deploy` user, rebuilds both the Go binary and
-the front-end on the server, then restarts the service (`deploy` has a sudoers rule scoped to
-exactly `systemctl restart clang-tidy-configurator` and `systemctl reload nginx`, nothing else).
+the front-end on the server, syncs `deploy/nginx.conf` to `/etc/nginx/sites-available/` and
+validates it (`nginx -t`) before reloading, then restarts the app service. `deploy`'s sudoers rule
+is scoped to exactly those four commands (`cp` that one file to that one destination, `nginx -t`,
+`systemctl restart clang-tidy-configurator`, `systemctl reload nginx`), nothing else - this is also
+why nginx config changes (like adding a new backend route's `location` block) need to go through
+`deploy/nginx.conf` in the repo, not edited by hand on the server, or the next deploy silently
+reverts them.
 `llvm/config.json` and the `clang-tidy` binary under `server/third-party/` are deliberately
 excluded from that sync - they're not tracked in git, so a routine deploy leaves them alone; see
 "Adding more versions" below for when you actually want to regenerate them.
