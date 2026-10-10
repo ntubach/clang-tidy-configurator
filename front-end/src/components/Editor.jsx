@@ -61,10 +61,22 @@ const Editor = ({ editorText, onTextChange, diagnostics, darkTheme, loadingIcon,
     session.setAnnotations(annotations)
 
     const Range = window.ace.require("ace/range").Range
+    const wordRe = /\w/
     ;(diagnostics || []).forEach((d) => {
       const row = Math.max(0, d.line - 1)
       const col = Math.max(0, d.column - 1)
-      const range = new Range(row, col, row, col + 1)
+      // clang-tidy only gives a start column, not a span, so extend the
+      // marker to cover the identifier/token at that position (falling
+      // back to a one-character marker for punctuation) for a readable
+      // squiggle instead of a near-invisible sliver.
+      const lineText = session.getLine(row) || ""
+      let end = col
+      if (wordRe.test(lineText[col] || "")) {
+        while (end < lineText.length && wordRe.test(lineText[end])) end++
+      } else {
+        end = col + 1
+      }
+      const range = new Range(row, col, row, end)
       const markerClass = severityToMarkerClass[d.severity] || styles.marker_warning
       const id = session.addMarker(range, markerClass, "text")
       markerIdsRef.current.push(id)
