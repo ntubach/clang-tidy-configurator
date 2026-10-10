@@ -32,10 +32,19 @@ anyone's laptop. To rotate it: generate a new keypair, replace the `deploy` user
 
 ## Status
 
-This is a v1 built end-to-end against one locally-installed clang-tidy version (20.1.8). The
-`llvm/` build pipeline that builds many versions from source (mirroring the reference project's
-`llvm/prepare.sh`) is written but has not been run beyond generating the schema for this one
-version — see "Adding more versions" below.
+Supports clang-tidy 14.0.6 through 23.1.2, installed as prebuilt packages (Ubuntu's own repos for
+14-19, `apt.llvm.org` for 20+) rather than built from source - see "Adding more versions" below for
+why, and for the `llvm/prepare.sh` source-build pipeline that exists but isn't what's actually
+running. Two version-range quirks `build-config.py` and the backend both account for:
+
+- clang-tidy's docs changed layout partway through this range: flat `checks/<name>.rst` files on
+  14.x, nested `checks/<module>/<name>.rst` on 15.x+.
+- `CheckOptions` changed serialization shape too: a `{key, value}` list on 14.x (and still accepted
+  by every later version), a flat map on 15.x+ (not accepted by 14.x). The frontend always emits
+  the list form for this reason - it's the one shape that works everywhere.
+- `--allow-no-checks` was added in clang-tidy 19; the backend detects support per binary rather
+  than assuming it, since passing it to an older binary fails the entire invocation before it
+  analyzes anything.
 
 ## How it differs from clang-format-configurator-v2
 
@@ -81,28 +90,46 @@ Requirements: Go 1.22+, Node 18+, a clang-tidy binary (the system package is fin
 
 ## Adding more versions
 
-`llvm/prepare.sh` builds clang-tidy from source for a list of LLVM tags (same idea as the
-reference's `llvm/prepare.sh`, adjusted for `clang-tools-extra` and clang-tidy's docs layout) and
-copies the per-version check docs. It has **not** been run for the full tag list in this
-repository yet - building clang + clang-tools-extra from source is a substantial amount of compute
-time per version. Run it with Docker available:
+The 14-23 range currently running was set up the fast way, not via the Docker source-build
+pipeline below:
+
+1. Install `clang-tidy-N` for the new version (Ubuntu's own repos cover a few versions; otherwise
+   add `apt.llvm.org`'s repo for that major version and install just the `clang-tidy-N` package -
+   avoid its `llvm.sh` installer script, which pulls in `lldb` and conflicts across versions on
+   shared files like `/etc/lldb/lldbinit`).
+2. Symlink it into `server/third-party/clang-tidy/clang-tidy-<full-version>` and add that version
+   to `server/config.json`'s `versions` map.
+3. Sparse-checkout `clang-tools-extra/docs/clang-tidy/checks` at the matching `llvmorg-<version>`
+   tag into `llvm/docs/<version>/checks/` (via `git archive <tag> -- <path> | tar -x`, not
+   `git checkout -- <path>` in a reused working tree - the latter doesn't prune files a newer tag
+   removed, silently mixing content from whatever was checked out there before).
+4. Regenerate the schema: `cd llvm && python3 build-config.py <bins_dir> docs ./config.json`.
+5. Re-deploy the front-end's static `config.json` and rebuild - see the gotcha below.
+
+`llvm/prepare.sh` builds clang-tidy from source for a list of LLVM tags instead (same idea as the
+reference's `llvm/prepare.sh`, adjusted for `clang-tools-extra` and clang-tidy's docs layout), for
+reaching further back than packages go (pre-14.x). It has **not** been run - building
+clang + clang-tools-extra from source is a substantial amount of compute time per version, on a
+box with more than the 1 vCPU / 1GB this is deployed on. Run it with Docker available:
 
 ```
 cd llvm
 ./prepare.sh --all
 ```
 
-This regenerates `llvm/config.json` (via `llvm/build-config.py`) from the newly built binaries and
-docs for every tag in `prepare.sh`'s `TAGS` array. Then add each new version to
-`server/config.json`'s `versions` map.
+This regenerates `llvm/config.json` via the same `llvm/build-config.py` from the newly built
+binaries and docs for every tag in `prepare.sh`'s `TAGS` array.
 
-To regenerate `config.json` for binaries/docs you already have on disk without the Docker
-pipeline:
+### Gotcha: AnalyzeApiUrl
 
-```
-cd llvm
-python3 build-config.py <dir-of-clang-tidy-N binaries> <dir-of-per-version-docs> ./config.json
-```
+`build-config.py` always writes `AnalyzeApiUrl` as `http://localhost:8080/analyze?` (the value
+that's actually correct for local dev, via `npm start`). Production needs it set to the relative
+`/analyze?` instead, so the browser hits the same origin nginx proxies rather than literally
+`localhost` in each visitor's own browser. Since `front-end/public/config.json` is copied into
+`front-end/build/config.json` at build time (not left as a symlink), patching the committed
+`llvm/config.json` alone isn't enough once a build already ran - either patch it *before*
+`npm run build`, or patch the deployed `front-end/build/config.json` directly, which takes effect
+immediately with no rebuild since it's served as a static file.
 
 ## Known limitations (v1)
 
