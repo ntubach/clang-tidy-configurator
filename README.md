@@ -7,6 +7,25 @@ its overall architecture (a small Go server shelling out to real clang binaries 
 front-end) but with a data model and UI built around clang-tidy's checks/CheckOptions instead of
 clang-format's formatting options.
 
+## Live deployment
+
+Running at http://165.227.213.129 (a $6/mo DigitalOcean droplet, no domain/TLS yet) - nginx
+serves the built front-end and proxies `/analyze` to the Go backend, which runs as the `ctc`
+systemd service (`clang-tidy-configurator.service`).
+
+Every push to `main` auto-deploys via `.github/workflows/deploy.yml`: it rsyncs the repo to
+`/opt/clang-tidy-configurator` as an unprivileged `deploy` user, rebuilds both the Go binary and
+the front-end on the server, then restarts the service (`deploy` has a sudoers rule scoped to
+exactly `systemctl restart clang-tidy-configurator` and `systemctl reload nginx`, nothing else).
+`llvm/config.json` and the `clang-tidy` binary under `server/third-party/` are deliberately
+excluded from that sync - they're not tracked in git, so a routine deploy leaves them alone; see
+"Adding more versions" below for when you actually want to regenerate them.
+
+The workflow authenticates over SSH using a dedicated deploy keypair, stored only as encrypted
+GitHub Actions secrets (`DEPLOY_SSH_KEY`, `DEPLOY_HOST`, `DEPLOY_USER`) - not this repo, not
+anyone's laptop. To rotate it: generate a new keypair, replace the `deploy` user's
+`~/.ssh/authorized_keys` entry on the server, and `gh secret set DEPLOY_SSH_KEY < new_key`.
+
 ## Status
 
 This is a v1 built end-to-end against one locally-installed clang-tidy version (20.1.8). The

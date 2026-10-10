@@ -1,0 +1,70 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Only one deploy at a time; a newer push supersedes one still in flight.
+concurrency:
+  group: deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Loads secrets.DEPLOY_SSH_KEY into a local ssh-agent for this job.
+      # The key itself is never written to a log; GitHub also auto-masks
+      # any literal secret value that happens to appear in step output.
+      - name: Set up deploy key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Trust the deploy host
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      # llvm/config.json (generated check schema, ~800KB) and
+      # server/third-party/ (the clang-tidy binary symlink) are not
+      # tracked in git - they're excluded here so a routine deploy never
+      # touches them. Regenerating them is a separate, manual step (see
+      # README's "Adding more versions" section).
+      - name: Sync source to server
+        run: |
+          rsync -az --delete \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude 'front-end/build' \
+            --exclude 'server/bin' \
+            --exclude 'server/third-party' \
+            --exclude 'llvm/config.json' \
+            --exclude 'llvm/docs' \
+            --exclude 'llvm/llvm' \
+            ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/clang-tidy-configurator/"
+
+      - name: Build and restart
+        run: |
+          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" '
+            set -e
+            cd /opt/clang-tidy-configurator/server
+            go build -o bin/clang-tidy-configurator ./cmd/clang-tidy-configurator
+
+            cd /opt/clang-tidy-configurator/front-end
+            npm ci --no-audit --no-fund
+            npm run build
+
+            sudo systemctl restart clang-tidy-configurator
+            sudo systemctl reload nginx
+          '
+
+      - name: Smoke test
+        run: |
+          sleep 2
+          code=$(curl -s -o /dev/null -w "%{http_code}" "http://${{ secrets.DEPLOY_HOST }}/")
+          echo "homepage http=$code"
+          test "$code" = "200"
