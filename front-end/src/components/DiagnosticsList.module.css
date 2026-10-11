@@ -9,12 +9,17 @@
 
 :global(.dark) .container {
   border-top-color: #4a4a4a;
+  color: #d0cec5;
 }
 
 .empty {
   padding: 10px;
   color: #777;
   font-family: sans-serif;
+}
+
+:global(.dark) .empty {
+  color: #999;
 }
 
 .row {

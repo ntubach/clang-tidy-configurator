@@ -7,7 +7,7 @@ const severityClass = {
   note: styles.severity_note,
 }
 
-const DiagnosticsList = ({ diagnostics, onJumpTo }) => {
+const DiagnosticsList = ({ diagnostics, hasAnalyzed, onJumpTo }) => {
   const sorted = React.useMemo(
     () => [...diagnostics].sort((a, b) => a.line - b.line || a.column - b.column),
     [diagnostics]
@@ -16,7 +16,9 @@ const DiagnosticsList = ({ diagnostics, onJumpTo }) => {
   return (
     <div className={styles.container}>
       {sorted.length === 0 ? (
-        <div className={styles.empty}>No diagnostics - enable some checks on the left.</div>
+        <div className={styles.empty}>
+          {hasAnalyzed ? "No diagnostics found." : "Click Analyze to run clang-tidy."}
+        </div>
       ) : (
         sorted.map((d, i) => (
           <div className={styles.row} key={i} onClick={() => onJumpTo(d.line, d.column)}>

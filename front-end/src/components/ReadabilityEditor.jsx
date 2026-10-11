@@ -33,11 +33,7 @@ const ReadabilityEditor = ({ originalCode, code, onCodeChange, diffMode, onToggl
       debounceChangePeriod={0}
       showPrintMargin={false}
       value={[originalCode, code]}
-      onChange={([, rightText]) => {
-        if (rightText !== code)
-          window.loadingIcon.setLoadingState("loading")
-        onCodeChangeDebounced(rightText)
-      }}
+      onChange={([, rightText]) => onCodeChangeDebounced(rightText)}
       setOptions={{
         showGutter: true,
       }}
@@ -55,11 +51,7 @@ const ReadabilityEditor = ({ originalCode, code, onCodeChange, diffMode, onToggl
       debounceChangePeriod={0}
       showPrintMargin={false}
       showGutter={true}
-      onChange={(text) => {
-        if (text !== code)
-          window.loadingIcon.setLoadingState("loading");
-        onCodeChangeDebounced(text)
-      }}
+      onChange={(text) => onCodeChangeDebounced(text)}
       setOptions={{
         enableBasicAutocompletion: true,
         enableLiveAutocompletion: true,

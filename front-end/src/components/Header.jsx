@@ -3,11 +3,31 @@ import styles from './Header.module.css'
 
 
 
-const Header = ({ darkTheme, onDarkThemeChange, versions, selectedVersion, onVersionChange, navLabel, onNavClick, children }) => {
+const SunIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="5" />
+    <line x1="12" y1="1" x2="12" y2="3" />
+    <line x1="12" y1="21" x2="12" y2="23" />
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+    <line x1="1" y1="12" x2="3" y2="12" />
+    <line x1="21" y1="12" x2="23" y2="12" />
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+  </svg>
+)
+
+const MoonIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+  </svg>
+)
+
+const Header = ({ darkTheme, onDarkThemeChange, versions, selectedVersion, onVersionChange, navLabel, onNavClick, children, primaryAction }) => {
   return (
     <header className={styles.header}>
-      <h1 className={styles.title_text}>clang-tidy configurator v2</h1>
-      <span>
+      <span className={styles.left_group}>
+        <h1 className={styles.title_text}>clang-tidy configurator v2</h1>
         <label className={styles.label} htmlFor="version-select">clang-tidy</label>
         <select
           id="version-select"
@@ -19,13 +39,32 @@ const Header = ({ darkTheme, onDarkThemeChange, versions, selectedVersion, onVer
             <option key={v} value={v}>{v}</option>
           ))}
         </select>
-        {children}
-        <button className={styles.button} onClick={onNavClick}>
-          {navLabel}
-        </button>
-        <button className={styles.button} id={styles.theme_button} onClick={onDarkThemeChange}>
-          {darkTheme ? "White Theme" : "Dark Theme"}
-        </button>
+      </span>
+      <span className={styles.right_group}>
+        <span className={styles.secondary_actions}>
+          <button
+            className={styles.button}
+            id={styles.theme_button}
+            onClick={onDarkThemeChange}
+            aria-label={darkTheme ? "Switch to light theme" : "Switch to dark theme"}
+            title={darkTheme ? "Switch to light theme" : "Switch to dark theme"}
+          >
+            {darkTheme ? <SunIcon /> : <MoonIcon />}
+          </button>
+          <button className={styles.button} onClick={onNavClick}>
+            {navLabel}
+          </button>
+          <button
+            className={styles.button}
+            onClick={() => window.open("https://github.com/ntubach/clang-tidy-configurator", "_blank", "noopener,noreferrer")}
+          >
+            GitHub
+          </button>
+          {children}
+        </span>
+        <span className={styles.primary_action}>
+          {primaryAction}
+        </span>
       </span>
     </header>
   )

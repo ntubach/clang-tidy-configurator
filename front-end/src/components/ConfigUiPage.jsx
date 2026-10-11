@@ -9,11 +9,15 @@ import "ace-builds/src-noconflict/theme-textmate";
 import "ace-builds/src-noconflict/theme-clouds_midnight";
 import "ace-builds/src-noconflict/ext-language_tools";
 import "ace-builds/src-min-noconflict/ext-searchbox";
-import { buildTidyConfigYaml, loadTidyConfigFromString } from "../tidyConfigStuff"
 
 
-const ConfigUiPage = ({ config, options, onLoaded, onError, onClose, darkTheme }) => {
-    const [optionsText, setOptionsText] = React.useState(buildTidyConfigYaml(options, config))
+// A plain YAML editor shell for a .clang-tidy file - upload/download/edit/
+// load. What the text means (how it's built from and parsed back into a
+// page's own state) is up to the caller via initialText/onLoadConfig, so
+// the same shell works for the main page's full module/check matrix and
+// the Readability Preview's narrower one.
+const ConfigUiPage = ({ initialText, onLoadConfig, onClose, darkTheme }) => {
+    const [optionsText, setOptionsText] = React.useState(initialText)
 
     const downloadConfigFile = React.useCallback(() => {
         const blob = new Blob([optionsText], { type: 'text/plain;charset=utf-8' })
@@ -32,16 +36,6 @@ const ConfigUiPage = ({ config, options, onLoaded, onError, onClose, darkTheme }
         }
         input.click()
     }, [setOptionsText])
-
-    const loadConfigTxtToOptions = React.useCallback((optionsStr) => {
-        try {
-            loadTidyConfigFromString(optionsStr, config, options.selectedVersion, (res) => {
-                onLoaded(res)
-            })
-        } catch (err) {
-            onError(err.message)
-        }
-    }, [onError, onLoaded, options.selectedVersion])
 
     return (
         <div className={styles.config_ui_page}>
@@ -83,7 +77,7 @@ const ConfigUiPage = ({ config, options, onLoaded, onError, onClose, darkTheme }
                     <button onClick={onClose}>
                         Close
                     </button>
-                    <button onClick={() => { loadConfigTxtToOptions(optionsText) }}>
+                    <button onClick={() => { onLoadConfig(optionsText) }}>
                         Load Config
                     </button>
                 </span>

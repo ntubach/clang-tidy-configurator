@@ -13,10 +13,39 @@
   background-color: rgb(0, 0, 0);
 }
 
+.left_group {
+  display: flex;
+  align-items: center;
+}
+
+.right_group {
+  display: flex;
+  align-items: center;
+}
+
+.secondary_actions {
+  display: flex;
+  align-items: center;
+}
+
+.primary_action {
+  display: flex;
+  align-items: center;
+  margin-left: 20px;
+  padding-left: 15px;
+  border-left: 1px solid #5a5a5a;
+}
+
+:global(.dark) .primary_action {
+  border-left-color: #4a4a4a;
+}
+
 .title_text {
   color: #cecdcd;
   font-size: medium;
   padding-left: 5px;
+  padding-right: 15px;
+  white-space: nowrap;
 }
 
 :global(.dark) button {
@@ -49,5 +78,10 @@ button {
 }
 
 #theme_button {
-  width: 120px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

@@ -5,7 +5,8 @@ class LoadingIcon extends React.Component {
 
     constructor() {
         super();
-        this.loadingState = "loading";
+        // "idle" until an Analyze/Apply Fixes click - nothing runs on its own.
+        this.loadingState = "idle";
         window.loadingIcon = this;
     }
 
@@ -22,6 +23,8 @@ class LoadingIcon extends React.Component {
             image = (<img className={styles.loading_icon} alt="loading" src="./loadingFinishedIcon.svg" />);
         else if (this.loadingState === "error")
             image = (<img className={styles.loading_icon} alt="loading" src="./loadingFailedIcon.svg" />);
+        else if (this.loadingState === "idle")
+            image = (<span></span>)
         else {
             console.error("LoadingIcon.jsx: Invalid state value - " + this.loadingState)
             image = (<span></span>)

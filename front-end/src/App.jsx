@@ -1,5 +1,4 @@
 import Header from "./components/Header";
-import headerStyles from "./components/Header.module.css";
 import ChecksList from "./components/ChecksList";
 import { Resizable } from "re-resizable";
 import Editor from "./components/Editor";
@@ -7,12 +6,11 @@ import DiagnosticsList from "./components/DiagnosticsList";
 import Error from "./components/Error";
 import LoadingIcon from "./components/LoadingIcon";
 import { useEffect, useState, useRef } from "react";
-import { buildTidyConfigYaml, emptyModuleState } from "./tidyConfigStuff"
+import { buildTidyConfigYaml, loadTidyConfigFromString, emptyModuleState } from "./tidyConfigStuff"
 import { Analyze } from "./API"
 import { useCookies } from "react-cookie";
 import Popup from 'reactjs-popup';
 
-import { debounce } from "lodash";
 import ConfigUiPage from "./components/ConfigUiPage";
 import ReadabilityPage from "./components/ReadabilityPage";
 
@@ -96,30 +94,20 @@ const MainApp = ({ config, selectedVersion, onVersionChange, darkTheme, onDarkTh
 
   const [text, setText] = useState("");
   const [diagnostics, setDiagnostics] = useState([]);
-  const [autoAnalyze, setAutoAnalyze] = useState(true);
+  const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const [currentLang] = useState("c_cpp")
   const gotoRef = useRef(null)
 
   function analyzeCode(opts, code) {
     const tidyYaml = buildTidyConfigYaml(opts, config)
     Analyze(code, tidyYaml, opts.extraArgs, opts.selectedVersion, currentLang, config.AnalyzeApiUrl,
-      (newDiagnostics) => { setDiagnostics(newDiagnostics); window.loadingIcon.setLoadingState("success") },
+      (newDiagnostics) => { setDiagnostics(newDiagnostics); setHasAnalyzed(true); window.loadingIcon.setLoadingState("success") },
       (errortext) => {
         window.loadingIcon.setLoadingState("error")
         errorText.current = errortext
         setActiveErrorPopup(true)
       })
   };
-
-  useEffect(() => { if (autoAnalyze) analyzeCode(options, text) }, [text]);
-
-  const analyzeCodeDebounced = useRef(debounce(analyzeCode, 1000, { leading: false, trailing: true })).current
-  useEffect(() => {
-    if (autoAnalyze) {
-      window.loadingIcon.setLoadingState("loading");
-      analyzeCodeDebounced(options, text)
-    }
-  }, [options]);
 
   const updateOptions = (updater) => setOptions((prev) => updater(prev))
 
@@ -133,17 +121,12 @@ const MainApp = ({ config, selectedVersion, onVersionChange, darkTheme, onDarkTh
         onVersionChange={onVersionChange}
         navLabel="Readability Preview"
         onNavClick={onNavigate}
+        primaryAction={
+          <button onClick={() => { window.loadingIcon.setLoadingState("loading"); analyzeCode(options, text) }}>
+            Analyze
+          </button>
+        }
       >
-        <input
-          className={headerStyles.checkbox}
-          type="checkbox"
-          id="autoupdate" defaultChecked={autoAnalyze}
-          onChange={(event) => setAutoAnalyze(event.currentTarget.checked)}
-        />
-        <label className={headerStyles.label} htmlFor="autoupdate">Auto-analyze on changes</label>
-        <button onClick={() => { window.loadingIcon.setLoadingState("loading"); analyzeCode(options, text) }}>
-          Analyze
-        </button>
         <button onClick={() => { setConfigPageOpened(true) }}>
           Config File
         </button>
@@ -170,20 +153,21 @@ const MainApp = ({ config, selectedVersion, onVersionChange, darkTheme, onDarkTh
         position="center center"
       >
         <ConfigUiPage
-          config={config}
+          initialText={buildTidyConfigYaml(options, config)}
+          onLoadConfig={(text) => {
+            try {
+              loadTidyConfigFromString(text, config, options.selectedVersion, (newOptions) => {
+                if (newOptions === undefined) return
+                setOptions(newOptions)
+                setConfigPageOpened(false)
+              })
+            } catch (err) {
+              errorText.current = err.message
+              setActiveErrorPopup(true)
+            }
+          }}
           onClose={() => setConfigPageOpened(false)}
-          onLoaded={(newOptions) => {
-            if (newOptions === undefined)
-              return
-            setOptions(newOptions)
-            setConfigPageOpened(false)
-          }}
-          onError={(errorDescription) => {
-            errorText.current = errorDescription
-            setActiveErrorPopup(true)
-          }}
           darkTheme={darkTheme}
-          options={options}
         />
       </Popup>
 
@@ -191,7 +175,6 @@ const MainApp = ({ config, selectedVersion, onVersionChange, darkTheme, onDarkTh
         <Resizable
           className="left_side"
           defaultSize={{ width: "45%" }}
-          handleStyles={{ bottom: { backgroundColor: "#FF0000" } }}
           enable={{
             top: false,
             right: true,
@@ -242,6 +225,7 @@ const MainApp = ({ config, selectedVersion, onVersionChange, darkTheme, onDarkTh
           />
           <DiagnosticsList
             diagnostics={diagnostics}
+            hasAnalyzed={hasAnalyzed}
             onJumpTo={(line, column) => gotoRef.current && gotoRef.current(line, column)}
           />
         </section>

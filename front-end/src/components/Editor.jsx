@@ -110,11 +110,7 @@ const Editor = ({ editorText, onTextChange, diagnostics, darkTheme, loadingIcon,
           debounceChangePeriod={0}
           showPrintMargin={false}
           showGutter={true}
-          onChange={(text) => {
-            if (text !== editorText)
-              window.loadingIcon.setLoadingState("loading");
-            onTextChangeDebounced(text)
-          }}
+          onChange={(text) => onTextChangeDebounced(text)}
           setOptions={{
             enableBasicAutocompletion: true,
             enableLiveAutocompletion: true,

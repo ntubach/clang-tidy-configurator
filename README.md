@@ -8,19 +8,20 @@ front-end) but with a data model and UI built around clang-tidy's checks/CheckOp
 clang-format's formatting options.
 
 A second, lighter-weight page ("Readability Preview", reachable via the header button) is closer
-to clang-format-configurator's own UX: pick from the `readability-*` checks that have a known safe
-fix, and see the sample rewritten in place - or diffed against where it started - instead of a
-diagnostics list. See `front-end/src/components/ReadabilityPage.jsx`.
+to clang-format-configurator's own UX: focused entirely on `readability-identifier-naming`, with a
+Case/Prefix/Suffix/IgnoredRegexp/HungarianPrefix picker for every identifier kind the check
+documents (classes, functions, variables, templates, macros, ...), and the sample rewritten in
+place - or diffed against where it started - instead of a diagnostics list. See
+`front-end/src/components/ReadabilityPage.jsx`.
 
 ## Live deployment
 
-Running at https://clang-tidy-configurator.site - a $6/mo DigitalOcean droplet (nginx serves the
+Running at https://clang-tidy-configurator.site - a DigitalOcean droplet (nginx serves the
 built front-end and proxies `/analyze` and `/fix` to the Go backend, which runs as the `ctc`
 systemd service, `clang-tidy-configurator.service`), fronted by Cloudflare for DNS and TLS. The
 domain is registered and DNS-managed through Cloudflare (SSL/TLS mode: Flexible - Cloudflare
 terminates HTTPS for visitors and talks to the droplet over plain HTTP, so the origin itself has
-no certificate of its own). The droplet is still directly reachable at its bare IP,
-`165.227.213.129`, over HTTP only.
+no certificate of its own).
 
 Every push to `main` auto-deploys via `.github/workflows/deploy.yml`: it rsyncs the repo to
 `/opt/clang-tidy-configurator` as an unprivileged `deploy` user, rebuilds both the Go binary and
@@ -148,7 +149,13 @@ effect immediately with no rebuild since it's served as a static file.
   rather than reverse-engineered, since this configurator never writes those itself.
 - CheckOptions enum constraints are only recognized for identifier-naming's casing and
   Hungarian-prefix options; everything else is a free-text field.
-- The Readability Preview page is checks-only, on/off - it doesn't expose per-check `CheckOptions`
-  (so e.g. identifier-naming's casing style there is always whatever clang-tidy defaults to), and
-  only offers `readability-*` checks our schema marks `offersFixes: true` for, not the full set of
-  checks with fixes across every module.
+- The Readability Preview page only covers `readability-identifier-naming`, but there it's
+  comprehensive: all 57 identifier kinds x 5 options (`Case`/`Prefix`/`Suffix`/`IgnoredRegexp`/
+  `HungarianPrefix`, whichever the selected version's binary actually has) plus the check's 5
+  non-per-kind booleans, derived from the schema rather than hand-copied so it tracks whatever
+  clang-tidy documents at
+  https://clang.llvm.org/extra/clang-tidy/checks/readability/identifier-naming.html. The one
+  deliberate gap is the `HungarianNotation.<Type>.<Name>` options - keyed by C/C++ type name
+  rather than by identifier kind, a different shape this page's per-kind UI doesn't fit. Loading a
+  `.clang-tidy` file there ignores `Checks` entirely (the page only ever runs that one check) and
+  drops any `CheckOptions` outside that coverage.
