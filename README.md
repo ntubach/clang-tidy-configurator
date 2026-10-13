@@ -136,6 +136,9 @@ pipeline below:
    `format-versions` map, download `clang/docs/ClangFormatStyleOptions.rst` at the matching
    `llvmorg-<version>` tag to `llvm/format-docs/<version>.rst`, and regenerate:
    `cd llvm && python3 build-format-config.py ../server/third-party/clang-format format-docs ./format-config.json`.
+   On the production droplet, `deploy/enable-clang-format.sh` does all of this for every version
+   in `server/config.json` (plus the `FormatApiUrl` patch below and a backend restart), and is safe
+   to re-run after adding a version.
 6. Re-deploy the front-end's static `config.json`/`format-config.json` and rebuild - see the
    gotcha below.
 
