@@ -31,6 +31,9 @@ const Editor = ({ editorText, onTextChange, diagnostics, darkTheme, loadingIcon,
         sampleCppString.current = textContent;
         onTextChange(sampleCppString.current)
       })
+    // Seeds the sample once on mount only - re-running this whenever the
+    // parent passes a new onTextChange would overwrite the user's edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   React.useEffect(() => {

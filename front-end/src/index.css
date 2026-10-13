@@ -37,11 +37,20 @@ body.dark {
   height: calc(100vh - 44px);
 }
 
+/* Explicit light-mode backgrounds: reactjs-popup's own stylesheet (which
+   would otherwise supply them) isn't imported, so without these the popups
+   render see-through over the page in light mode. */
 .config_page_popup-content {
   height: 70vh;
   width: 70vw;
   min-width: 900px;
   border-radius: 5px;
+  background-color: white;
+  border: 1px solid #b5b5b5;
+}
+
+.config_page_popup-overlay {
+  background: rgba(0, 0, 0, 0.13);
 }
 
 .dark .config_page_popup-content {
@@ -61,6 +70,7 @@ body.dark {
   width: 55%;
   padding: 0px;
   margin: 0px;
+  background-color: white;
 }
 
 .dark .error_popup-content {
