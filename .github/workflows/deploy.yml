@@ -58,6 +58,16 @@ jobs:
             go build -o bin/clang-tidy-configurator ./cmd/clang-tidy-configurator
 
             cd /opt/clang-tidy-configurator/front-end
+            # The Format tab schema (llvm/format-config.json) is generated on
+            # the server, not tracked, so only link it in when it exists:
+            # react-scripts build fails outright on a dangling symlink in
+            # public/, after already emptying build/. Without it the
+            # Readability Preview just runs without the Format tab options.
+            if [ -f ../llvm/format-config.json ]; then
+              ln -sfn ../../llvm/format-config.json public/format-config.json
+            else
+              rm -f public/format-config.json
+            fi
             npm ci --no-audit --no-fund
             npm run build
 

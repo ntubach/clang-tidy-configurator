@@ -109,8 +109,11 @@ optionally the matching clang-format for the Readability Preview's Format tab.
    not `src/`, so it's fetched at runtime as a static asset rather than bundled into the JS by
    webpack - that file can run to several megabytes (hundreds of checks x many versions), and
    bundling it is enough to OOM a small build machine. `front-end/public/format-config.json`
-   (symlink to `llvm/format-config.json`, the clang-format option schema) works the same way, and
-   is only fetched by the Readability Preview page.
+   (the clang-format option schema) works the same way and is only fetched by the Readability
+   Preview page, but isn't tracked: once you've generated `llvm/format-config.json` (see "Adding
+   more versions"), link it in with
+   `ln -s ../../llvm/format-config.json front-end/public/format-config.json`. Deploys do this
+   automatically when the file exists; a dangling link would fail the build.
 
 ## Adding more versions
 

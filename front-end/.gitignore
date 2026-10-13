@@ -11,6 +11,11 @@
 # production
 /build
 
+# symlink to the generated ../llvm/format-config.json, created at deploy
+# time only when that file exists (see .github/workflows/deploy.yml); a
+# dangling symlink here fails the whole build
+/public/format-config.json
+
 # misc
 .DS_Store
 .env.local
