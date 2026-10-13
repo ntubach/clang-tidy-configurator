@@ -124,3 +124,63 @@
 :global(.dark) .naming_kind_title {
   color: #cfcec4;
 }
+
+.tab_bar {
+  display: flex;
+  gap: 2px;
+  margin: 0px 4px 8px;
+  border-bottom: 1px solid #e3e3e3;
+}
+
+:global(.dark) .tab_bar {
+  border-bottom-color: #4a4a4a;
+}
+
+.tab {
+  font-family: sans-serif;
+  font-size: 13px;
+  padding: 6px 14px;
+  margin-bottom: -1px;
+  border: 1px solid transparent;
+  border-radius: 4px 4px 0px 0px;
+  background: none;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.tab:hover {
+  opacity: 1;
+}
+
+.tab_active {
+  opacity: 1;
+  font-weight: bold;
+  border-color: #e3e3e3;
+  border-bottom-color: white;
+  background-color: white;
+}
+
+:global(.dark) .tab {
+  color: #cfcec4;
+}
+
+:global(.dark) .tab_active {
+  border-color: #4a4a4a;
+  border-bottom-color: rgb(34, 34, 38);
+  background-color: rgb(34, 34, 38);
+}
+
+.format_options {
+  padding: 4px 8px;
+}
+
+.panel_notice {
+  font-family: sans-serif;
+  font-size: 13px;
+  margin: 12px 4px;
+  opacity: 0.8;
+}
+
+:global(.dark) .panel_notice {
+  color: #cfcec4;
+}

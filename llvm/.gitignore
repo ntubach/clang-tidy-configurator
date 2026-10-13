@@ -1,6 +1,7 @@
 *
 !.gitignore
 !build-config.py
+!build-format-config.py
 !requirements.txt
 !prepare.sh
 !Dockerfile

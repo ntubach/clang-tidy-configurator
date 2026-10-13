@@ -9,13 +9,24 @@ import LoadingIcon from "./LoadingIcon";
 import Error from "./Error";
 import ConfigUiPage from "./ConfigUiPage";
 import Popup from 'reactjs-popup';
-import { Fix } from "../API";
+import FormatOptionList from "./format/FormatOptionList";
+import { Fix, Format } from "../API";
 import { ValidationError } from "../tidyConfigStuff";
+import {
+  DEFAULT_FORMAT_OPTIONS, buildFormatStyleArg, buildFormatConfigFile,
+  loadFormatConfigFromString, effectiveFormatValue,
+} from "../formatConfigStuff";
 import styles from "./ReadabilityPage.module.css";
 import sampleCpp from '../code_snippets/sample.cpp'
 
 const NAMING_CHECK = "readability-identifier-naming"
 const NAMING_DOCS_URL = "https://clang.llvm.org/extra/clang-tidy/checks/readability/identifier-naming.html"
+const FORMAT_DOCS_URL = "https://clang.llvm.org/docs/ClangFormatStyleOptions.html"
+
+const TABS = [
+  { id: "tidy", label: "Tidy", configFile: ".clang-tidy" },
+  { id: "format", label: "Format", configFile: ".clang-format" },
+]
 
 // Every identifier kind readability-identifier-naming documents, grouped the
 // way the docs page itself groups them. "Default" is the fallback used for
@@ -173,10 +184,13 @@ function loadReadabilityConfigFromString(configStr) {
   return checkOptionOverrides
 }
 
-// A second, lighter-weight page, focused entirely on
-// readability-identifier-naming: pick a Case/Prefix/Suffix per kind of
-// identifier and see the sample rewritten in place (or diffed against where
-// it started), instead of the main page's diagnostics list.
+// A second, lighter-weight page, focused on readability: the Tidy tab
+// configures readability-identifier-naming (a Case/Prefix/Suffix per kind of
+// identifier), the Format tab configures clang-format, and Apply runs both -
+// naming fixes first, then clang-format over the result - so the sample is
+// rewritten in place (or diffed against where it started) with both applied,
+// instead of the main page's diagnostics list. The left-hand tabs only switch
+// which tool's options (and which config file, for Config File) are shown.
 const ReadabilityPage = ({ config, selectedVersion, onVersionChange, darkTheme, onDarkThemeChange, onNavigate }) => {
   const [originalCode, setOriginalCode] = React.useState("")
   const [code, setCode] = React.useState("")
@@ -186,6 +200,24 @@ const ReadabilityPage = ({ config, selectedVersion, onVersionChange, darkTheme, 
   const [activeErrorPopup, setActiveErrorPopup] = React.useState(false)
   const [configPageOpened, setConfigPageOpened] = React.useState(false)
   const errorText = React.useRef("")
+  const [activeTab, setActiveTab] = React.useState("tidy")
+  const [formatConfig, setFormatConfig] = React.useState(null)
+  const [formatConfigError, setFormatConfigError] = React.useState(null)
+  const [formatOptions, setFormatOptions] = React.useState(DEFAULT_FORMAT_OPTIONS)
+  const [formatSearch, setFormatSearch] = React.useState("")
+
+  // The clang-format option schema is a separate static asset from the
+  // clang-tidy one (see llvm/build-format-config.py), only needed on this
+  // page, so it's fetched here rather than up front in App.
+  React.useEffect(() => {
+    fetch("/format-config.json")
+      .then((response) => {
+        if (!response.ok) throw new window.Error(`HTTP ${response.status}`)
+        return response.json()
+      })
+      .then(setFormatConfig)
+      .catch((err) => setFormatConfigError(err.toString()))
+  }, [])
 
   React.useEffect(() => {
     fetch(sampleCpp)
@@ -196,7 +228,15 @@ const ReadabilityPage = ({ config, selectedVersion, onVersionChange, darkTheme, 
   // Option names don't necessarily match across versions - reset to the
   // sample-aligned defaults when switching, same spirit as the main page's
   // options reset on version change.
-  React.useEffect(() => { setCheckOptionOverrides(defaultNamingOverrides()) }, [selectedVersion])
+  React.useEffect(() => {
+    setCheckOptionOverrides(defaultNamingOverrides())
+    setFormatOptions(DEFAULT_FORMAT_OPTIONS)
+  }, [selectedVersion])
+
+  // undefined while the schema is loading or failed to load, or when it has
+  // no entry for this version; the Format tab says which, and Apply then
+  // skips the clang-format step rather than failing outright.
+  const formatVersionOptions = formatConfig?.[selectedVersion]
 
   const namingCheck = React.useMemo(
     () => config[selectedVersion].checks.find((c) => c.name === NAMING_CHECK),
@@ -229,19 +269,46 @@ const ReadabilityPage = ({ config, selectedVersion, onVersionChange, darkTheme, 
     [namingOptionsByName, searchLower]
   )
 
-  function applyFixes(currentCode, optionOverrides) {
+  function showError(errortext) {
+    window.loadingIcon.setLoadingState("error")
+    errorText.current = errortext
+    setActiveErrorPopup(true)
+  }
+
+  // Naming fixes first, then clang-format over their output: a rename can
+  // change line lengths, which formatting should get the last word on.
+  function applyAll(currentCode, optionOverrides, currentFormatOptions) {
     const tidyYaml = buildFixChecksYaml(optionOverrides)
     Fix(currentCode, tidyYaml, "-std=c++20", selectedVersion, "c_cpp", config.FixApiUrl,
       (fixedCode) => {
         setCode(fixedCode)
-        window.loadingIcon.setLoadingState("success")
+        if (!formatVersionOptions) {
+          window.loadingIcon.setLoadingState("success")
+          return
+        }
+        Format(fixedCode, buildFormatStyleArg(currentFormatOptions), selectedVersion, "c_cpp", formatConfig.FormatApiUrl,
+          (formattedCode) => {
+            setCode(formattedCode)
+            window.loadingIcon.setLoadingState("success")
+          },
+          showError)
       },
-      (errortext) => {
-        window.loadingIcon.setLoadingState("error")
-        errorText.current = errortext
-        setActiveErrorPopup(true)
-      })
+      showError)
   }
+
+  function setFormatOption(title, value) {
+    setFormatOptions((prev) => {
+      const next = { ...prev }
+      if (value === undefined) delete next[title]
+      else next[title] = value
+      return next
+    })
+  }
+
+  const activeTabInfo = TABS.find((tab) => tab.id === activeTab)
+  const columnLimit = formatVersionOptions
+    ? Number(effectiveFormatValue(formatConfig, selectedVersion, formatOptions, "ColumnLimit"))
+    : 0
 
   function setOption(key, value) {
     setCheckOptionOverrides((prev) => {
@@ -263,13 +330,20 @@ const ReadabilityPage = ({ config, selectedVersion, onVersionChange, darkTheme, 
         navLabel="Back to Analyzer"
         onNavClick={onNavigate}
         primaryAction={
-          <button onClick={() => { window.loadingIcon.setLoadingState("loading"); applyFixes(code, checkOptionOverrides) }}>
-            Apply Fixes
+          <button
+            title="Apply the Tidy tab's naming fixes, then format the result with the Format tab's clang-format options"
+            onClick={() => { window.loadingIcon.setLoadingState("loading"); applyAll(code, checkOptionOverrides, formatOptions) }}
+          >
+            Apply
           </button>
         }
       >
-        <button onClick={() => { setConfigPageOpened(true) }}>
-          Config File
+        <button
+          title={`View, edit, upload or download the ${activeTabInfo.configFile} file for the ${activeTabInfo.label} tab`}
+          disabled={activeTab === "format" && !formatVersionOptions}
+          onClick={() => { setConfigPageOpened(true) }}
+        >
+          Config File ({activeTabInfo.configFile})
         </button>
       </Header>
 
@@ -294,10 +368,17 @@ const ReadabilityPage = ({ config, selectedVersion, onVersionChange, darkTheme, 
         position="center center"
       >
         <ConfigUiPage
-          initialText={buildFixChecksYaml(checkOptionOverrides)}
+          key={activeTab}
+          fileName={activeTabInfo.configFile}
+          initialText={activeTab === "format"
+            ? buildFormatConfigFile(formatOptions)
+            : buildFixChecksYaml(checkOptionOverrides)}
           onLoadConfig={(text) => {
             try {
-              setCheckOptionOverrides(loadReadabilityConfigFromString(text))
+              if (activeTab === "format")
+                setFormatOptions(loadFormatConfigFromString(text, formatConfig, selectedVersion))
+              else
+                setCheckOptionOverrides(loadReadabilityConfigFromString(text))
               setConfigPageOpened(false)
             } catch (err) {
               errorText.current = err.message
@@ -332,75 +413,118 @@ const ReadabilityPage = ({ config, selectedVersion, onVersionChange, darkTheme, 
               by the scrollbar and scrolls away with the content. */}
           <div className={styles.checks_panel}>
             <div className={styles.panel_header}>
-              <h2 className={styles.panel_title}>Identifier Naming</h2>
-              <p className={styles.panel_description}>
-                Case, prefix, suffix, ignored-name regex and Hungarian prefix for every identifier
-                kind this check documents. See{" "}
-                <a href={NAMING_DOCS_URL} target="_blank" rel="noopener noreferrer">
-                  the full option reference
-                </a>{" "}
-                for the per-type Hungarian notation options, which don't fit this per-kind layout.
-              </p>
-              <div className={styles.search_input_wrapper}>
-                <input
-                  type="text"
-                  className={styles.search_input}
-                  placeholder="Search kinds (e.g. member, template, macro)..."
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                />
-                {search ? (
+              <div className={styles.tab_bar} role="tablist">
+                {TABS.map((tab) => (
                   <button
+                    key={tab.id}
                     type="button"
-                    className={styles.search_clear_button}
-                    aria-label="Clear search"
-                    onClick={() => setSearch("")}
+                    role="tab"
+                    aria-selected={activeTab === tab.id}
+                    className={activeTab === tab.id ? `${styles.tab} ${styles.tab_active}` : styles.tab}
+                    onClick={() => setActiveTab(tab.id)}
                   >
-                    ×
+                    {tab.label}
                   </button>
-                ) : null}
+                ))}
               </div>
-            </div>
-            <div className={styles.naming_groups}>
-              {visibleGeneralOptions.length > 0 ? (
-                <div className={styles.naming_group}>
-                  <h3 className={styles.naming_group_title}>General</h3>
-                  <div className={styles.naming_kind}>
-                    <div className={checkItemStyles.options_container}>
-                      {visibleGeneralOptions.map((opt) => {
-                        const optionInfo = namingOptionsByName[opt.name]
-                        const key = `${NAMING_CHECK}.${opt.name}`
-                        return (
-                          <div className={checkItemStyles.option_row} key={key}>
-                            <span className={checkItemStyles.option_name} title={optionInfo.docstring.replace(/<[^>]+>/g, "")}>
-                              {opt.label}
-                            </span>
-                            <CheckOptionInput
-                              optionInfo={optionInfo}
-                              currentValue={checkOptionOverrides[key]}
-                              onChange={(value) => setOption(key, value)}
-                            />
-                          </div>
-                        )
-                      })}
-                    </div>
+              {activeTab === "format" ? (
+                <>
+                  <h2 className={styles.panel_title}>clang-format</h2>
+                  <p className={styles.panel_description}>
+                    Every clang-format style option for the selected version. Unset options fall back
+                    to <code>BasedOnStyle</code> (the style's default is highlighted in each dropdown and
+                    shown as each field's placeholder); the generated <code>.clang-format</code> only lists
+                    what you change. See{" "}
+                    <a href={FORMAT_DOCS_URL} target="_blank" rel="noopener noreferrer">
+                      the full option reference
+                    </a>.
+                  </p>
+                  <div className={styles.search_input_wrapper}>
+                    <input
+                      type="text"
+                      className={styles.search_input}
+                      placeholder="Search options (e.g. brace, indent, align)..."
+                      value={formatSearch}
+                      onChange={(event) => setFormatSearch(event.target.value)}
+                    />
+                    {formatSearch ? (
+                      <button
+                        type="button"
+                        className={styles.search_clear_button}
+                        aria-label="Clear search"
+                        onClick={() => setFormatSearch("")}
+                      >
+                        ×
+                      </button>
+                    ) : null}
                   </div>
-                </div>
-              ) : null}
-              {NAMING_GROUP_ORDER.filter((group) => visibleKindsByGroup[group]?.length).map((group) => (
-                <div className={styles.naming_group} key={group}>
-                  <h3 className={styles.naming_group_title}>{group}</h3>
-                  {visibleKindsByGroup[group].map((kind) => (
-                    <div className={styles.naming_kind} key={kind.name}>
-                      <div className={styles.naming_kind_title}>{kind.label}</div>
+                </>
+              ) : (
+                <>
+                  <h2 className={styles.panel_title}>Identifier Naming</h2>
+                  <p className={styles.panel_description}>
+                    Case, prefix, suffix, ignored-name regex and Hungarian prefix for every identifier
+                    kind this check documents. See{" "}
+                    <a href={NAMING_DOCS_URL} target="_blank" rel="noopener noreferrer">
+                      the full option reference
+                    </a>{" "}
+                    for the per-type Hungarian notation options, which don't fit this per-kind layout.
+                  </p>
+                  <div className={styles.search_input_wrapper}>
+                    <input
+                      type="text"
+                      className={styles.search_input}
+                      placeholder="Search kinds (e.g. member, template, macro)..."
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                    />
+                    {search ? (
+                      <button
+                        type="button"
+                        className={styles.search_clear_button}
+                        aria-label="Clear search"
+                        onClick={() => setSearch("")}
+                      >
+                        ×
+                      </button>
+                    ) : null}
+                  </div>
+                </>
+              )}
+            </div>
+            {activeTab === "format" ? (
+              <div className={styles.format_options}>
+                {formatVersionOptions ? (
+                  <FormatOptionList
+                    versionOptions={formatVersionOptions}
+                    formatOptions={formatOptions}
+                    search={formatSearch}
+                    onOptionChange={setFormatOption}
+                  />
+                ) : (
+                  <p className={styles.panel_notice}>
+                    {formatConfigError
+                      ? `Failed to load format-config.json: ${formatConfigError}`
+                      : formatConfig
+                        ? `No clang-format option schema for ${selectedVersion}; Apply will skip formatting.`
+                        : "Loading clang-format options..."}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className={styles.naming_groups}>
+                {visibleGeneralOptions.length > 0 ? (
+                  <div className={styles.naming_group}>
+                    <h3 className={styles.naming_group_title}>General</h3>
+                    <div className={styles.naming_kind}>
                       <div className={checkItemStyles.options_container}>
-                        {kind.visibleSubs.map((sub) => {
-                          const optionInfo = namingOptionsByName[`${kind.name}${sub}`]
-                          const key = `${NAMING_CHECK}.${kind.name}${sub}`
+                        {visibleGeneralOptions.map((opt) => {
+                          const optionInfo = namingOptionsByName[opt.name]
+                          const key = `${NAMING_CHECK}.${opt.name}`
                           return (
                             <div className={checkItemStyles.option_row} key={key}>
                               <span className={checkItemStyles.option_name} title={optionInfo.docstring.replace(/<[^>]+>/g, "")}>
-                                {sub}
+                                {opt.label}
                               </span>
                               <CheckOptionInput
                                 optionInfo={optionInfo}
@@ -412,10 +536,38 @@ const ReadabilityPage = ({ config, selectedVersion, onVersionChange, darkTheme, 
                         })}
                       </div>
                     </div>
-                  ))}
-                </div>
-              ))}
-            </div>
+                  </div>
+                ) : null}
+                {NAMING_GROUP_ORDER.filter((group) => visibleKindsByGroup[group]?.length).map((group) => (
+                  <div className={styles.naming_group} key={group}>
+                    <h3 className={styles.naming_group_title}>{group}</h3>
+                    {visibleKindsByGroup[group].map((kind) => (
+                      <div className={styles.naming_kind} key={kind.name}>
+                        <div className={styles.naming_kind_title}>{kind.label}</div>
+                        <div className={checkItemStyles.options_container}>
+                          {kind.visibleSubs.map((sub) => {
+                            const optionInfo = namingOptionsByName[`${kind.name}${sub}`]
+                            const key = `${NAMING_CHECK}.${kind.name}${sub}`
+                            return (
+                              <div className={checkItemStyles.option_row} key={key}>
+                                <span className={checkItemStyles.option_name} title={optionInfo.docstring.replace(/<[^>]+>/g, "")}>
+                                  {sub}
+                                </span>
+                                <CheckOptionInput
+                                  optionInfo={optionInfo}
+                                  currentValue={checkOptionOverrides[key]}
+                                  onChange={(value) => setOption(key, value)}
+                                />
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </Resizable>
         <section className="right_side">
@@ -428,6 +580,7 @@ const ReadabilityPage = ({ config, selectedVersion, onVersionChange, darkTheme, 
             onResetSample={() => setCode(originalCode)}
             darkTheme={darkTheme}
             loadingIcon={<LoadingIcon />}
+            printMarginColumn={columnLimit}
           />
         </section>
       </div>

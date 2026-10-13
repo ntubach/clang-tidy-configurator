@@ -17,7 +17,11 @@ import { debounce } from "lodash";
 // around diagnostics markers/annotations on unchanged text, this one is
 // built around a fixed-code/diff toggle over text that gets rewritten in
 // place, and conflating the two risks regressing the main page.
-const ReadabilityEditor = ({ originalCode, code, onCodeChange, diffMode, onToggleDiffMode, onResetSample, darkTheme, loadingIcon }) => {
+//
+// printMarginColumn (the effective clang-format ColumnLimit, when there is
+// one) draws the editor's print margin there, as a column-limit guide.
+const ReadabilityEditor = ({ originalCode, code, onCodeChange, diffMode, onToggleDiffMode, onResetSample, darkTheme, loadingIcon, printMarginColumn }) => {
+  const showPrintMargin = printMarginColumn > 0
   const onCodeChangeDebounced = React.useRef(debounce(onCodeChange, 1000, { leading: false, trailing: true })).current
 
   const editor = diffMode ? (
@@ -31,11 +35,12 @@ const ReadabilityEditor = ({ originalCode, code, onCodeChange, diffMode, onToggl
       orientation="beside"
       fontSize={14}
       debounceChangePeriod={0}
-      showPrintMargin={false}
+      showPrintMargin={showPrintMargin}
       value={[originalCode, code]}
       onChange={([, rightText]) => onCodeChangeDebounced(rightText)}
       setOptions={{
         showGutter: true,
+        printMarginColumn: printMarginColumn || 80,
       }}
     />
   ) : (
@@ -49,13 +54,14 @@ const ReadabilityEditor = ({ originalCode, code, onCodeChange, diffMode, onToggl
       theme={darkTheme ? "clouds_midnight" : "textmate"}
       fontSize={14}
       debounceChangePeriod={0}
-      showPrintMargin={false}
+      showPrintMargin={showPrintMargin}
       showGutter={true}
       onChange={(text) => onCodeChangeDebounced(text)}
       setOptions={{
         enableBasicAutocompletion: true,
         enableLiveAutocompletion: true,
         enableSnippets: true,
+        printMarginColumn: printMarginColumn || 80,
       }}
     />
   )

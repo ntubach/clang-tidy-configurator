@@ -25,3 +25,5 @@ front-end/.prettierrc
 llvm/llvm
 llvm/docs
 llvm/config.json
+llvm/format-docs
+llvm/format-config.json

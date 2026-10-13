@@ -8,16 +8,23 @@ front-end) but with a data model and UI built around clang-tidy's checks/CheckOp
 clang-format's formatting options.
 
 A second, lighter-weight page ("Readability Preview", reachable via the header button) is closer
-to clang-format-configurator's own UX: focused entirely on `readability-identifier-naming`, with a
-Case/Prefix/Suffix/IgnoredRegexp/HungarianPrefix picker for every identifier kind the check
-documents (classes, functions, variables, templates, macros, ...), and the sample rewritten in
-place - or diffed against where it started - instead of a diagnostics list. See
-`front-end/src/components/ReadabilityPage.jsx`.
+to clang-format-configurator's own UX, with two tabs on the left:
+
+- **Tidy**: `readability-identifier-naming`, with a Case/Prefix/Suffix/IgnoredRegexp/HungarianPrefix
+  picker for every identifier kind the check documents (classes, functions, variables, templates,
+  macros, ...).
+- **Format**: every clang-format style option, using clang-format-configurator-v2's own option UI
+  (ported into `front-end/src/components/format/`).
+
+**Apply** runs both - naming fixes first, then clang-format over the result - and the sample is
+rewritten in place, or diffed against where it started, instead of shown as a diagnostics list.
+The tabs only change which options are shown, and which file **Config File** opens
+(`.clang-tidy` or `.clang-format`). See `front-end/src/components/ReadabilityPage.jsx`.
 
 ## Live deployment
 
 Running at https://clang-tidy-configurator.site - a DigitalOcean droplet (nginx serves the
-built front-end and proxies `/analyze` and `/fix` to the Go backend, which runs as the `ctc`
+built front-end and proxies `/analyze`, `/fix` and `/format` to the Go backend, which runs as the `ctc`
 systemd service, `clang-tidy-configurator.service`), fronted by Cloudflare for DNS and TLS. The
 domain is registered and DNS-managed through Cloudflare (SSL/TLS mode: Flexible - Cloudflare
 terminates HTTPS for visitors and talks to the droplet over plain HTTP, so the origin itself has
@@ -32,8 +39,8 @@ is scoped to exactly those four commands (`cp` that one file to that one destina
 why nginx config changes (like adding a new backend route's `location` block) need to go through
 `deploy/nginx.conf` in the repo, not edited by hand on the server, or the next deploy silently
 reverts them.
-`llvm/config.json` and the `clang-tidy` binary under `server/third-party/` are deliberately
-excluded from that sync - they're not tracked in git, so a routine deploy leaves them alone; see
+`llvm/config.json`, `llvm/format-config.json` and the `clang-tidy`/`clang-format` binaries under
+`server/third-party/` are deliberately excluded from that sync - they're not tracked in git, so a routine deploy leaves them alone; see
 "Adding more versions" below for when you actually want to regenerate them.
 
 The workflow authenticates over SSH using a dedicated deploy keypair, stored only as encrypted
@@ -76,13 +83,17 @@ running. Two version-range quirks `build-config.py` and the backend both account
 
 ## Build and Run
 
-Requirements: Go 1.22+, Node 18+, a clang-tidy binary (the system package is fine to start).
+Requirements: Go 1.22+, Node 18+, a clang-tidy binary (the system package is fine to start), and
+optionally the matching clang-format for the Readability Preview's Format tab.
 
-1. Point `server/config.json`'s `versions` map at a real clang-tidy binary, e.g. for the system
-   package:
+1. Point `server/config.json`'s `versions` map at a real clang-tidy binary, and its
+   `format-versions` map at the clang-format of the same version, e.g. for the system packages:
    ```
    ln -sf /usr/bin/clang-tidy server/third-party/clang-tidy/clang-tidy-20.1.8
+   ln -sf /usr/bin/clang-format server/third-party/clang-format/clang-format-20.1.8
    ```
+   A missing clang-format is not fatal: the server logs it and `/format` rejects that version, and
+   the page's Apply still runs the naming fixes.
 2. Run the server:
    ```
    cd server
@@ -97,7 +108,9 @@ Requirements: Go 1.22+, Node 18+, a clang-tidy binary (the system package is fin
    `front-end/public/config.json` is a symlink to `llvm/config.json`. It lives under `public/`,
    not `src/`, so it's fetched at runtime as a static asset rather than bundled into the JS by
    webpack - that file can run to several megabytes (hundreds of checks x many versions), and
-   bundling it is enough to OOM a small build machine.
+   bundling it is enough to OOM a small build machine. `front-end/public/format-config.json`
+   (symlink to `llvm/format-config.json`, the clang-format option schema) works the same way, and
+   is only fetched by the Readability Preview page.
 
 ## Adding more versions
 
@@ -115,7 +128,13 @@ pipeline below:
    `git checkout -- <path>` in a reused working tree - the latter doesn't prune files a newer tag
    removed, silently mixing content from whatever was checked out there before).
 4. Regenerate the schema: `cd llvm && python3 build-config.py <bins_dir> docs ./config.json`.
-5. Re-deploy the front-end's static `config.json` and rebuild - see the gotcha below.
+5. For the Format tab, do the same for clang-format: install `clang-format-N`, symlink it into
+   `server/third-party/clang-format/clang-format-<full-version>`, add it to `server/config.json`'s
+   `format-versions` map, download `clang/docs/ClangFormatStyleOptions.rst` at the matching
+   `llvmorg-<version>` tag to `llvm/format-docs/<version>.rst`, and regenerate:
+   `cd llvm && python3 build-format-config.py ../server/third-party/clang-format format-docs ./format-config.json`.
+6. Re-deploy the front-end's static `config.json`/`format-config.json` and rebuild - see the
+   gotcha below.
 
 `llvm/prepare.sh` builds clang-tidy from source for a list of LLVM tags instead (same idea as the
 reference's `llvm/prepare.sh`, adjusted for `clang-tools-extra` and clang-tidy's docs layout), for
@@ -131,7 +150,7 @@ cd llvm
 This regenerates `llvm/config.json` via the same `llvm/build-config.py` from the newly built
 binaries and docs for every tag in `prepare.sh`'s `TAGS` array.
 
-### Gotcha: AnalyzeApiUrl / FixApiUrl
+### Gotcha: AnalyzeApiUrl / FixApiUrl / FormatApiUrl
 
 `build-config.py` always writes `AnalyzeApiUrl` and `FixApiUrl` as `http://localhost:8080/...`
 (the value that's actually correct for local dev, via `npm start`). Production needs both set to
@@ -140,7 +159,8 @@ rather than literally `localhost` in each visitor's own browser. Since `front-en
 is copied into `front-end/build/config.json` at build time (not left as a symlink), patching the
 committed `llvm/config.json` alone isn't enough once a build already ran - either patch both URLs
 *before* `npm run build`, or patch the deployed `front-end/build/config.json` directly, which takes
-effect immediately with no rebuild since it's served as a static file.
+effect immediately with no rebuild since it's served as a static file. `build-format-config.py`
+does the same with `FormatApiUrl` in `format-config.json` (production: `/format?`).
 
 ## Known limitations (v1)
 
@@ -159,3 +179,10 @@ effect immediately with no rebuild since it's served as a static file.
   rather than by identifier kind, a different shape this page's per-kind UI doesn't fit. Loading a
   `.clang-tidy` file there ignores `Checks` entirely (the page only ever runs that one check) and
   drops any `CheckOptions` outside that coverage.
+- The Format tab's state is sparse - `BasedOnStyle` plus only the options you set - unlike
+  clang-format-configurator-v2, which fills every option with the style's defaults. So switching
+  `BasedOnStyle` keeps your own changes, and the generated `.clang-format` lists only those. It
+  starts at `BasedOnStyle: Chromium`, the style the sample is already in, so Apply is a no-op until
+  something changes. Options that only accept a struct form in this UI (e.g. clang-format 23's
+  `BreakBinaryOperations.PerOperator` list) are kept as-is when loaded from a file but can't be
+  edited here.

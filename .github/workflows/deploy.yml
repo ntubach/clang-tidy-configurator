@@ -29,8 +29,9 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
 
-      # llvm/config.json (generated check schema, ~800KB) and
-      # server/third-party/ (the clang-tidy binary symlink) are not
+      # llvm/config.json (generated check schema, ~800KB),
+      # llvm/format-config.json (generated clang-format option schema) and
+      # server/third-party/ (the clang-tidy/clang-format binary symlinks) are not
       # tracked in git - they're excluded here so a routine deploy never
       # touches them. Regenerating them is a separate, manual step (see
       # README's "Adding more versions" section).
@@ -43,7 +44,9 @@ jobs:
             --exclude 'server/bin' \
             --exclude 'server/third-party' \
             --exclude 'llvm/config.json' \
+            --exclude 'llvm/format-config.json' \
             --exclude 'llvm/docs' \
+            --exclude 'llvm/format-docs' \
             --exclude 'llvm/llvm' \
             ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/clang-tidy-configurator/"
 

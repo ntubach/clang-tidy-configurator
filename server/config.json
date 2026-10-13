@@ -14,5 +14,17 @@
         "16.0.6": "./third-party/clang-tidy/clang-tidy-16.0.6",
         "15.0.7": "./third-party/clang-tidy/clang-tidy-15.0.7",
         "14.0.6": "./third-party/clang-tidy/clang-tidy-14.0.6"
+    },
+    "format-versions": {
+        "23.1.2": "./third-party/clang-format/clang-format-23.1.2",
+        "22.1.8": "./third-party/clang-format/clang-format-22.1.8",
+        "21.1.8": "./third-party/clang-format/clang-format-21.1.8",
+        "20.1.8": "./third-party/clang-format/clang-format-20.1.8",
+        "19.1.1": "./third-party/clang-format/clang-format-19.1.1",
+        "18.1.3": "./third-party/clang-format/clang-format-18.1.3",
+        "17.0.6": "./third-party/clang-format/clang-format-17.0.6",
+        "16.0.6": "./third-party/clang-format/clang-format-16.0.6",
+        "15.0.7": "./third-party/clang-format/clang-format-15.0.7",
+        "14.0.6": "./third-party/clang-format/clang-format-14.0.6"
     }
 }

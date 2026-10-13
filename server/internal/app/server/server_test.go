@@ -13,10 +13,11 @@ import (
 
 	"github.com/nikotubach/clang-tidy-configurator-v2/internal/app/analyzer"
 	"github.com/nikotubach/clang-tidy-configurator-v2/internal/app/config"
+	"github.com/nikotubach/clang-tidy-configurator-v2/internal/app/formatter"
 )
 
-// packageDir is captured once before any test chdirs (both TestAnalyzeEndpoint
-// and TestFixEndpoint need to cd up to the repo root to find config.json,
+// packageDir is captured once before any test chdirs (TestAnalyzeEndpoint,
+// TestFixEndpoint and TestFormatEndpoint all need to cd up to the repo root to find config.json,
 // which would otherwise make the second test to run unable to find its own
 // testing_data*.json depending on test execution order).
 var packageDir string
@@ -52,7 +53,7 @@ func newTestServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return NewServer(an, cfg.BindAddr)
+	return NewServer(an, formatter.NewFormatter(cfg.FormatVersions), cfg.BindAddr)
 }
 
 type TestCase struct {
@@ -181,6 +182,71 @@ func TestFixEndpoint(t *testing.T) {
 			for _, unwanted := range test.ExpectedNotContains {
 				if strings.Contains(resp.FixedCode, unwanted) {
 					t.Errorf("expected fixed code to not contain %q, got:\n%s", unwanted, resp.FixedCode)
+				}
+			}
+		})
+	}
+}
+
+type FormatTestCase struct {
+	Version             string   `json:"version"`
+	Description         string   `json:"description"`
+	FileExt             string   `json:"file_extension"`
+	Style               string   `json:"style"`
+	Code                string   `json:"code"`
+	ExpectedStatus      int      `json:"expected_status"`
+	ExpectedContains    []string `json:"expected_contains"`
+	ExpectedNotContains []string `json:"expected_not_contains"`
+}
+
+func TestFormatEndpoint(t *testing.T) {
+	if err := os.Chdir(packageDir); err != nil {
+		t.Fatal(err)
+	}
+	testFile, err := os.Open("testing_data_format.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var tests []FormatTestCase
+	json.NewDecoder(testFile).Decode(&tests)
+	testFile.Close()
+
+	srv := newTestServer(t)
+
+	for _, test := range tests {
+		t.Run(test.Description, func(t *testing.T) {
+			body, _ := json.Marshal(formatRequestBody{Code: test.Code, Style: test.Style})
+			query := url.Values{}
+			query.Set("version", test.Version)
+			query.Set("filext", test.FileExt)
+			req := httptest.NewRequest("POST", fmt.Sprintf("/format?%s", query.Encode()), bytes.NewReader(body))
+			rec := httptest.NewRecorder()
+			srv.ServeHTTP(rec, req)
+
+			expectedStatus := test.ExpectedStatus
+			if expectedStatus == 0 {
+				expectedStatus = http.StatusOK
+			}
+			if rec.Code != expectedStatus {
+				t.Fatalf("expected %d, got %d: %s", expectedStatus, rec.Code, rec.Body.String())
+			}
+			if expectedStatus != http.StatusOK {
+				return
+			}
+
+			var resp formatResponseBody
+			if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+				t.Fatalf("failed to unmarshal response: %s\nbody: %s", err, rec.Body.String())
+			}
+
+			for _, want := range test.ExpectedContains {
+				if !strings.Contains(resp.FormattedCode, want) {
+					t.Errorf("expected formatted code to contain %q, got:\n%s", want, resp.FormattedCode)
+				}
+			}
+			for _, unwanted := range test.ExpectedNotContains {
+				if strings.Contains(resp.FormattedCode, unwanted) {
+					t.Errorf("expected formatted code to not contain %q, got:\n%s", unwanted, resp.FormattedCode)
 				}
 			}
 		})

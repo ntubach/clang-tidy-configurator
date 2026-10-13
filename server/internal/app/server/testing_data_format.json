@@ -1,0 +1,48 @@
+[
+    {
+        "description": "IndentWidth 8 re-indents a function body",
+        "version": "20.1.8",
+        "file_extension": ".cpp",
+        "style": "{BasedOnStyle: LLVM, IndentWidth: 8}",
+        "code": "int f(int x) {\n  int y = x;\n  return y;\n}\n",
+        "expected_contains": [
+            "\n        return y;"
+        ]
+    },
+    {
+        "description": "BreakBeforeBraces Allman moves the opening brace",
+        "version": "14.0.6",
+        "file_extension": ".cpp",
+        "style": "{BasedOnStyle: LLVM, BreakBeforeBraces: Allman}",
+        "code": "int f() { return 1; }\nint g(int x) {\n  if (x) {\n    return 2;\n  }\n  return 3;\n}\n",
+        "expected_contains": [
+            "int g(int x)\n{"
+        ]
+    },
+    {
+        "description": "PointerAlignment Left on the newest version",
+        "version": "23.1.2",
+        "file_extension": ".cpp",
+        "style": "{BasedOnStyle: Google, PointerAlignment: Left, DerivePointerAlignment: false}",
+        "code": "int *p = nullptr;\n",
+        "expected_contains": [
+            "int* p"
+        ]
+    },
+    {
+        "description": "unknown option is reported as a bad request",
+        "version": "20.1.8",
+        "file_extension": ".cpp",
+        "style": "{NotARealOption: true}",
+        "code": "int x;\n",
+        "expected_status": 400
+    },
+    {
+        "description": "unconfigured version is reported as a bad request",
+        "version": "1.0.0",
+        "file_extension": ".cpp",
+        "style": "{}",
+        "code": "int x;\n",
+        "expected_status": 400
+    }
+]

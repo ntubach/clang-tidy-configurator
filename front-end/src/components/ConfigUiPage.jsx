@@ -11,18 +11,18 @@ import "ace-builds/src-noconflict/ext-language_tools";
 import "ace-builds/src-min-noconflict/ext-searchbox";
 
 
-// A plain YAML editor shell for a .clang-tidy file - upload/download/edit/
-// load. What the text means (how it's built from and parsed back into a
-// page's own state) is up to the caller via initialText/onLoadConfig, so
-// the same shell works for the main page's full module/check matrix and
-// the Readability Preview's narrower one.
-const ConfigUiPage = ({ initialText, onLoadConfig, onClose, darkTheme }) => {
+// A plain YAML editor shell for a .clang-tidy (or, via fileName,
+// .clang-format) file - upload/download/edit/load. What the text means (how
+// it's built from and parsed back into a page's own state) is up to the
+// caller via initialText/onLoadConfig, so the same shell works for the main
+// page's full module/check matrix and both of the Readability Preview's tabs.
+const ConfigUiPage = ({ initialText, onLoadConfig, onClose, darkTheme, fileName = ".clang-tidy" }) => {
     const [optionsText, setOptionsText] = React.useState(initialText)
 
     const downloadConfigFile = React.useCallback(() => {
         const blob = new Blob([optionsText], { type: 'text/plain;charset=utf-8' })
-        saveAs(blob, ".clang-tidy")
-    }, [optionsText])
+        saveAs(blob, fileName)
+    }, [optionsText, fileName])
 
     const onUploadFileToStr = React.useCallback(() => {
         const input = document.createElement('input');
@@ -41,7 +41,7 @@ const ConfigUiPage = ({ initialText, onLoadConfig, onClose, darkTheme }) => {
         <div className={styles.config_ui_page}>
             <header className={styles.top_panel}>
                 <h2 className={styles.page_title_text}>
-                    Edit your .clang-tidy config file in place or use Upload and Download buttons to open File Explorer
+                    Edit your {fileName} config file in place or use Upload and Download buttons to open File Explorer
                 </h2>
             </header>
             <div className={styles.middle_panel}>

@@ -9,6 +9,10 @@ type Config struct {
 	CertFile   string            `json:"certificate-file" arg:"-c"`
 	PKeyFile   string            `json:"key-file" arg:"-k"`
 	Versions   map[string]string `json:"versions"`
+	// clang-format binaries for the Readability Preview's Format tab, keyed
+	// by the same version strings as Versions. Optional: a version missing
+	// here just can't be formatted.
+	FormatVersions map[string]string `json:"format-versions"`
 }
 
 func NewConfig() *Config {

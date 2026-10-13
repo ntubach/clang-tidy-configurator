@@ -6,6 +6,7 @@ import (
 
 	"github.com/nikotubach/clang-tidy-configurator-v2/internal/app/analyzer"
 	"github.com/nikotubach/clang-tidy-configurator-v2/internal/app/config"
+	"github.com/nikotubach/clang-tidy-configurator-v2/internal/app/formatter"
 	"github.com/nikotubach/clang-tidy-configurator-v2/internal/app/server"
 	"github.com/alexflint/go-arg"
 	log "github.com/sirupsen/logrus"
@@ -34,7 +35,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	s := server.NewServer(an, config.BindAddr)
+	fm := formatter.NewFormatter(config.FormatVersions)
+	s := server.NewServer(an, fm, config.BindAddr)
 	if len(config.CertFile) == 0 || len(config.PKeyFile) == 0 {
 		log.Info("Staring HTTP server")
 		err = s.Start()

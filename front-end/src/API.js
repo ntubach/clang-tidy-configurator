@@ -36,3 +36,22 @@ export function Fix(code, tidyConfigYaml, extraArgs, version, language, fixApiUr
   post(fixApiUrl, version, filextFor(language), code, tidyConfigYaml, extraArgs,
     (data) => onResult(data.fixedCode || "", data.diagnostics || []), onError)
 }
+
+// clang-format, for the Readability Preview's Format tab. Same version
+// strings as clang-tidy; the server maps them to its clang-format binaries.
+export function Format(code, styleYaml, version, language, formatApiUrl, onResult, onError) {
+  fetch(formatApiUrl + new URLSearchParams({
+    version: version,
+    filext: filextFor(language)
+  }), {
+    body: JSON.stringify({ code: code, style: styleYaml }),
+    mode: 'cors',
+    method: 'POST'
+  })
+    .then(response => {
+      if (response.ok)
+        response.json().then((data) => onResult(data.formattedCode || ""))
+      else
+        response.text().then(onError)
+    }).catch((errorObject) => { onError(errorObject.toString()) })
+}
