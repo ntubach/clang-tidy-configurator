@@ -17,7 +17,7 @@ import {
   loadFormatConfigFromString, effectiveFormatValue,
 } from "../formatConfigStuff";
 import styles from "./ReadabilityPage.module.css";
-import sampleCpp from '../code_snippets/sample.cpp'
+import sampleCpp from '../code_snippets/sample.cpp?url'
 
 const NAMING_CHECK = "readability-identifier-naming"
 const NAMING_DOCS_URL = "https://clang.llvm.org/extra/clang-tidy/checks/readability/identifier-naming.html"

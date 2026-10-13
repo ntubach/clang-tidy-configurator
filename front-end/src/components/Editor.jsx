@@ -1,7 +1,7 @@
 import React from "react";
 import AceEditor from "react-ace";
 import styles from './Editor.module.css'
-import sampleCpp from '../code_snippets/sample.cpp'
+import sampleCpp from '../code_snippets/sample.cpp?url'
 import "./ace.css"
 import "ace-builds/src-noconflict/mode-c_cpp";
 import "ace-builds/src-noconflict/snippets/c_cpp";

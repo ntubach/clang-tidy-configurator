@@ -29,7 +29,7 @@ function initialOptions(config, selectedVersion) {
 
 // config.json (the generated check schema) can run to several megabytes, so
 // it's fetched at runtime as a static asset instead of being `import`-ed -
-// bundling it into the JS makes webpack hold the whole thing in memory
+// bundling it into the JS makes the bundler hold the whole thing in memory
 // during the production build, which is enough to OOM a small server.
 const App = () => {
   const [config, setConfig] = useState(null)

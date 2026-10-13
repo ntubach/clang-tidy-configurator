@@ -83,7 +83,7 @@ running. Two version-range quirks `build-config.py` and the backend both account
 
 ## Build and Run
 
-Requirements: Go 1.22+, Node 18+, a clang-tidy binary (the system package is fine to start), and
+Requirements: Go 1.22+, Node 18.18+, a clang-tidy binary (the system package is fine to start), and
 optionally the matching clang-format for the Readability Preview's Format tab.
 
 1. Point `server/config.json`'s `versions` map at a real clang-tidy binary, and its
@@ -105,9 +105,15 @@ optionally the matching clang-format for the Readability Preview's Format tab.
    npm install
    npm start
    ```
+   The front-end is built with [Vite](https://vite.dev/): `npm start` serves it on
+   http://localhost:3000, `npm run build` writes the production build to `front-end/build/`
+   (which nginx serves), and `npm run preview` serves that build locally. It's pinned to Vite 6,
+   the last major version that runs on Node 18 (the droplet's version); Vite 7+ and ESLint 10 (the
+   first supported ESLint, so there's no lint script yet) both need Node 20.19+.
+
    `front-end/public/config.json` is a symlink to `llvm/config.json`. It lives under `public/`,
-   not `src/`, so it's fetched at runtime as a static asset rather than bundled into the JS by
-   webpack - that file can run to several megabytes (hundreds of checks x many versions), and
+   not `src/`, so it's fetched at runtime as a static asset rather than bundled into the JS -
+   that file can run to several megabytes (hundreds of checks x many versions), and
    bundling it is enough to OOM a small build machine. `front-end/public/format-config.json`
    (the clang-format option schema) works the same way and is only fetched by the Readability
    Preview page, but isn't tracked: once you've generated `llvm/format-config.json` (see "Adding
