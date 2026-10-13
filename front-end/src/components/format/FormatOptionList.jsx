@@ -1,4 +1,3 @@
-import React from "react";
 import Option from "./Option";
 
 // Option whose value only takes effect when another option is set to

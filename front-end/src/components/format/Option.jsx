@@ -1,5 +1,5 @@
 import React from "react";
-import Collapsible from "react-collapsible";
+import Collapsible from "../Collapsible";
 import styles from "./Option.module.css";
 import SingleSelector from "./SingleSelector";
 import MapSelector from "./MapSelector";

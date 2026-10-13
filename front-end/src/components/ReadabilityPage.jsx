@@ -199,7 +199,7 @@ const ReadabilityPage = ({ config, selectedVersion, onVersionChange, darkTheme, 
   const [search, setSearch] = React.useState("")
   const [activeErrorPopup, setActiveErrorPopup] = React.useState(false)
   const [configPageOpened, setConfigPageOpened] = React.useState(false)
-  const errorText = React.useRef("")
+  const [errorText, setErrorText] = React.useState("")
   const [activeTab, setActiveTab] = React.useState("tidy")
   const [formatConfig, setFormatConfig] = React.useState(null)
   const [formatConfigError, setFormatConfigError] = React.useState(null)
@@ -227,11 +227,13 @@ const ReadabilityPage = ({ config, selectedVersion, onVersionChange, darkTheme, 
 
   // Option names don't necessarily match across versions - reset to the
   // sample-aligned defaults when switching, same spirit as the main page's
-  // options reset on version change.
-  React.useEffect(() => {
+  // options reset on version change (and done during render the same way).
+  const [optionsVersion, setOptionsVersion] = React.useState(selectedVersion)
+  if (optionsVersion !== selectedVersion) {
+    setOptionsVersion(selectedVersion)
     setCheckOptionOverrides(defaultNamingOverrides())
     setFormatOptions(DEFAULT_FORMAT_OPTIONS)
-  }, [selectedVersion])
+  }
 
   // undefined while the schema is loading or failed to load, or when it has
   // no entry for this version; the Format tab says which, and Apply then
@@ -271,7 +273,7 @@ const ReadabilityPage = ({ config, selectedVersion, onVersionChange, darkTheme, 
 
   function showError(errortext) {
     window.loadingIcon.setLoadingState("error")
-    errorText.current = errortext
+    setErrorText(errortext)
     setActiveErrorPopup(true)
   }
 
@@ -355,7 +357,7 @@ const ReadabilityPage = ({ config, selectedVersion, onVersionChange, darkTheme, 
         position="top center"
         closeOnDocumentClick
         onClose={() => setActiveErrorPopup(false)}>
-        <Error errorText={errorText.current} />
+        <Error errorText={errorText} />
       </Popup>
 
       <Popup
@@ -381,7 +383,7 @@ const ReadabilityPage = ({ config, selectedVersion, onVersionChange, darkTheme, 
                 setCheckOptionOverrides(loadReadabilityConfigFromString(text))
               setConfigPageOpened(false)
             } catch (err) {
-              errorText.current = err.message
+              setErrorText(err.message)
               setActiveErrorPopup(true)
             }
           }}

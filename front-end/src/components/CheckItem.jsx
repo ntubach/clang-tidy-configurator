@@ -1,5 +1,5 @@
 import React from "react";
-import Collapsible from "react-collapsible";
+import Collapsible from "./Collapsible";
 import styles from "./CheckItem.module.css";
 import CheckOptionInput from "./CheckOptionInput";
 

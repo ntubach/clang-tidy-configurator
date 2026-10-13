@@ -1,4 +1,3 @@
-import React from "react";
 import styles from "../Selector.module.css";
 
 // Firefox ignores CSS color/background/font-style on <option>, so the

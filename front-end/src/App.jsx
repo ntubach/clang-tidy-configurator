@@ -86,11 +86,19 @@ const Shell = ({ config }) => {
 const MainApp = ({ config, selectedVersion, onVersionChange, darkTheme, onDarkThemeChange, onNavigate }) => {
   const [configPageOpened, setConfigPageOpened] = useState(false)
 
-  const errorText = useRef("")
+  const [errorText, setErrorText] = useState("")
   const [activeErrorPopup, setActiveErrorPopup] = useState(false)
 
   const [options, setOptions] = useState(initialOptions(config, selectedVersion));
-  useEffect(() => { setOptions(initialOptions(config, selectedVersion)) }, [config, selectedVersion])
+  // Option sets differ per version, so start over when it changes. Done
+  // during render (React's "adjusting state when a prop changes" pattern)
+  // rather than in an effect, which would first render the new version
+  // with the old version's options.
+  const [optionsVersion, setOptionsVersion] = useState(selectedVersion)
+  if (optionsVersion !== selectedVersion) {
+    setOptionsVersion(selectedVersion)
+    setOptions(initialOptions(config, selectedVersion))
+  }
 
   const [text, setText] = useState("");
   const [diagnostics, setDiagnostics] = useState([]);
@@ -104,7 +112,7 @@ const MainApp = ({ config, selectedVersion, onVersionChange, darkTheme, onDarkTh
       (newDiagnostics) => { setDiagnostics(newDiagnostics); setHasAnalyzed(true); window.loadingIcon.setLoadingState("success") },
       (errortext) => {
         window.loadingIcon.setLoadingState("error")
-        errorText.current = errortext
+        setErrorText(errortext)
         setActiveErrorPopup(true)
       })
   };
@@ -140,7 +148,7 @@ const MainApp = ({ config, selectedVersion, onVersionChange, darkTheme, onDarkTh
         closeOnDocumentClick
         onClose={() => setActiveErrorPopup(false)}>
         <Error
-          errorText={errorText.current}
+          errorText={errorText}
         />
       </Popup>
       <Popup
@@ -162,7 +170,7 @@ const MainApp = ({ config, selectedVersion, onVersionChange, darkTheme, onDarkTh
                 setConfigPageOpened(false)
               })
             } catch (err) {
-              errorText.current = err.message
+              setErrorText(err.message)
               setActiveErrorPopup(true)
             }
           }}

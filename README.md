@@ -83,7 +83,7 @@ running. Two version-range quirks `build-config.py` and the backend both account
 
 ## Build and Run
 
-Requirements: Go 1.22+, Node 18.18+, a clang-tidy binary (the system package is fine to start), and
+Requirements: Go 1.22+, Node 20.19+ (the droplet runs 24), a clang-tidy binary (the system package is fine to start), and
 optionally the matching clang-format for the Readability Preview's Format tab.
 
 1. Point `server/config.json`'s `versions` map at a real clang-tidy binary, and its
@@ -107,9 +107,10 @@ optionally the matching clang-format for the Readability Preview's Format tab.
    ```
    The front-end is built with [Vite](https://vite.dev/): `npm start` serves it on
    http://localhost:3000, `npm run build` writes the production build to `front-end/build/`
-   (which nginx serves), and `npm run preview` serves that build locally. It's pinned to Vite 6,
-   the last major version that runs on Node 18 (the droplet's version); Vite 7+ and ESLint 10 (the
-   first supported ESLint, so there's no lint script yet) both need Node 20.19+.
+   (which nginx serves), `npm run preview` serves that build locally, and `npm run lint` runs
+   ESLint (the recommended JS rules plus `eslint-plugin-react-hooks`; builds don't lint, unlike
+   Create React App). `eslint-plugin-react` isn't used - it doesn't support ESLint 10 yet, and
+   ESLint's own scope analysis already counts JSX usage for `no-unused-vars`.
 
    `front-end/public/config.json` is a symlink to `llvm/config.json`. It lives under `public/`,
    not `src/`, so it's fetched at runtime as a static asset rather than bundled into the JS -

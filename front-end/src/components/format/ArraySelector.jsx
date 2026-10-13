@@ -1,4 +1,3 @@
-import React from "react";
 import { cloneDeep } from "lodash";
 import styles from "../Selector.module.css";
 import SingleSelector from "./SingleSelector";

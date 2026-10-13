@@ -1,4 +1,3 @@
-import React from "react";
 import styles from "./Selector.module.css";
 
 // Renders one CheckOption input (bool/enum/int/string). currentValue
