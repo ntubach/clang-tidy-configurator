@@ -85,3 +85,8 @@ button {
   align-items: center;
   justify-content: center;
 }
+#sponsor_button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
